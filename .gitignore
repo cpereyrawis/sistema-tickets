@@ -1,0 +1,14 @@
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# .NET (fases posteriores)
+bin/
+obj/
+*.user
+
+# Entorno
+.env
+.env.local

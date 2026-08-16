@@ -1,0 +1,157 @@
+/*
+  SISTEMA DE DISEÑO — Asistente de Registro de Tareas
+
+  Concepto: panel de instrumento. Neutros fríos con sesgo pizarra y un ámbar que
+  significa "el tiempo está corriendo". Cada estado de jornada tiene su propio color,
+  porque el estado es la información principal de la pantalla (§15).
+
+  Tipografía: se apoya en las familias nativas de Windows, que es la plataforma objetivo
+  declarada en NFR-009 (Edge y Chrome de escritorio corporativo). Los tiempos y los
+  identificadores de ticket usan monoespaciada con cifras tabulares para que las columnas
+  de dígitos queden alineadas.
+
+  Temas: el bloque `:root` define la paleta clara completa. El bloque de preferencia del
+  sistema y el de `[data-theme="dark"]` solo redefinen tokens, nunca componentes.
+*/
+
+:root {
+  color-scheme: light dark;
+
+  /* Neutros con sesgo pizarra */
+  --fondo: #e9ecf1;
+  --superficie: #ffffff;
+  --superficie-2: #f4f6f9;
+  --superficie-3: #eaedf3;
+  --borde: #d5dae3;
+  --borde-fuerte: #b6bece;
+  --texto: #171c24;
+  --texto-2: #566175;
+  --texto-3: #7d8799;
+
+  /* Estados de jornada */
+  --pendiente: #55606f;
+  --pendiente-fondo: #e2e6ed;
+  --activa: #8f5409;
+  --activa-fondo: #fbefdb;
+  --descanso: #0b6b5d;
+  --descanso-fondo: #dcf0ec;
+  --finalizada: #3d5296;
+  --finalizada-fondo: #e3e8f8;
+
+  /* Semánticos */
+  --peligro: #9e2620;
+  --peligro-fondo: #fbe4e2;
+  --alerta: #8a5a06;
+  --alerta-fondo: #fcf1da;
+
+  /* Acento = el color del tiempo corriendo */
+  --acento: var(--activa);
+  --acento-fondo: var(--activa-fondo);
+  --acento-texto: #ffffff;
+
+  --foco: #2f6bd8;
+
+  /* Tipografía */
+  --fuente-ui: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --fuente-display: 'Segoe UI Variable Display', 'Segoe UI Semibold', 'Segoe UI', system-ui, sans-serif;
+  --fuente-mono: 'Cascadia Mono', 'Consolas', ui-monospace, 'SFMono-Regular', monospace;
+
+  --t-xs: 0.75rem;
+  --t-sm: 0.8125rem;
+  --t-base: 0.9375rem;
+  --t-md: 1.0625rem;
+  --t-lg: 1.375rem;
+  --t-xl: 1.875rem;
+  --t-crono: 3.25rem;
+
+  /* Espaciado y forma */
+  --e-1: 0.25rem;
+  --e-2: 0.5rem;
+  --e-3: 0.75rem;
+  --e-4: 1rem;
+  --e-5: 1.5rem;
+  --e-6: 2rem;
+  --e-7: 3rem;
+
+  --r-sm: 4px;
+  --r-md: 7px;
+  --r-lg: 11px;
+
+  --sombra-1: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.04);
+  --sombra-2: 0 4px 12px rgb(16 24 40 / 0.08), 0 1px 3px rgb(16 24 40 / 0.05);
+  --sombra-3: 0 16px 44px rgb(16 24 40 / 0.18), 0 4px 12px rgb(16 24 40 / 0.10);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --fondo: #10141a;
+    --superficie: #181d25;
+    --superficie-2: #1f2630;
+    --superficie-3: #262e3a;
+    --borde: #2b3441;
+    --borde-fuerte: #3d4857;
+    --texto: #e7ebf2;
+    --texto-2: #a4aebd;
+    --texto-3: #7b8595;
+
+    --pendiente: #9daabb;
+    --pendiente-fondo: #222b36;
+    --activa: #f2ab63;
+    --activa-fondo: #33261a;
+    --descanso: #4fc9b1;
+    --descanso-fondo: #102b28;
+    --finalizada: #9ab0e6;
+    --finalizada-fondo: #1c2436;
+
+    --peligro: #f2897f;
+    --peligro-fondo: #331b1a;
+    --alerta: #e9b05c;
+    --alerta-fondo: #2e2416;
+
+    --acento: var(--activa);
+    --acento-fondo: var(--activa-fondo);
+    --acento-texto: #221708;
+
+    --foco: #7aa7f5;
+
+    --sombra-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --sombra-2: 0 4px 12px rgb(0 0 0 / 0.45);
+    --sombra-3: 0 16px 44px rgb(0 0 0 / 0.6);
+  }
+}
+
+:root[data-theme='dark'] {
+  --fondo: #10141a;
+  --superficie: #181d25;
+  --superficie-2: #1f2630;
+  --superficie-3: #262e3a;
+  --borde: #2b3441;
+  --borde-fuerte: #3d4857;
+  --texto: #e7ebf2;
+  --texto-2: #a4aebd;
+  --texto-3: #7b8595;
+
+  --pendiente: #9daabb;
+  --pendiente-fondo: #222b36;
+  --activa: #f2ab63;
+  --activa-fondo: #33261a;
+  --descanso: #4fc9b1;
+  --descanso-fondo: #102b28;
+  --finalizada: #9ab0e6;
+  --finalizada-fondo: #1c2436;
+
+  --peligro: #f2897f;
+  --peligro-fondo: #331b1a;
+  --alerta: #e9b05c;
+  --alerta-fondo: #2e2416;
+
+  --acento: var(--activa);
+  --acento-fondo: var(--activa-fondo);
+  --acento-texto: #221708;
+
+  --foco: #7aa7f5;
+
+  --sombra-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --sombra-2: 0 4px 12px rgb(0 0 0 / 0.45);
+  --sombra-3: 0 16px 44px rgb(0 0 0 / 0.6);
+}
