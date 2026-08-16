@@ -1,60 +1,70 @@
 /*
   SISTEMA DE DISEÑO — Asistente de Registro de Tareas
 
-  Concepto: panel de instrumento. Neutros fríos con sesgo pizarra y un ámbar que
-  significa "el tiempo está corriendo". Cada estado de jornada tiene su propio color,
-  porque el estado es la información principal de la pantalla (§15).
+  Derivado del panel de Recibos Digitales. Se conservan de ese sistema:
+    · el naranja de marca #ff7f04 con #ff3301 como profundidad del degradado
+    · el radio normal de 1rem
+    · la geometría y el tinte violáceo de la sombra: 0 8px 20px rgba(29,14,40,.1)
+    · el gesto de hover scale(1.03) sobre tarjetas
+    · Inter como familia de interfaz
+    · el par "título en negrita + subtítulo apagado"
 
-  Tipografía: se apoya en las familias nativas de Windows, que es la plataforma objetivo
-  declarada en NFR-009 (Edge y Chrome de escritorio corporativo). Los tiempos y los
-  identificadores de ticket usan monoespaciada con cifras tabulares para que las columnas
-  de dígitos queden alineadas.
+  La traducción a modo oscuro conserva el TONO de marca y baja la luminosidad, en vez
+  de invertir los colores: invertir produce grises sucios y acentos ilegibles. Los
+  neutros llevan un sesgo cálido para acompañar al naranja, en lugar del gris azulado
+  habitual.
 
-  Temas: el bloque `:root` define la paleta clara completa. El bloque de preferencia del
-  sistema y el de `[data-theme="dark"]` solo redefinen tokens, nunca componentes.
+  Diseño oscuro primero: `:root` define la paleta oscura completa. La preferencia clara
+  del sistema y `[data-theme="light"]` solo redefinen tokens, nunca componentes.
 */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark light;
 
-  /* Neutros con sesgo pizarra */
-  --fondo: #e9ecf1;
-  --superficie: #ffffff;
-  --superficie-2: #f4f6f9;
-  --superficie-3: #eaedf3;
-  --borde: #d5dae3;
-  --borde-fuerte: #b6bece;
-  --texto: #171c24;
-  --texto-2: #566175;
-  --texto-3: #7d8799;
+  /* Neutros cálidos */
+  --fondo: #131110;
+  --superficie: #1c1a18;
+  --superficie-2: #232120;
+  --superficie-3: #2c2927;
+  --borde: #35312e;
+  --borde-fuerte: #474240;
+  --texto: #f1ede9;
+  --texto-2: #b0a8a2;
+  --texto-3: #918883;
+
+  /* Marca */
+  --marca: #ff7f04;
+  --marca-profundo: #ff3301;
+  /* Degradado de la barra: mismo tono, luminosidad apta para texto blanco (4.5:1+). */
+  --marca-banda: linear-gradient(115deg, #c2560a 0%, #a83505 100%);
 
   /* Estados de jornada */
-  --pendiente: #55606f;
-  --pendiente-fondo: #e2e6ed;
-  --activa: #8f5409;
-  --activa-fondo: #fbefdb;
-  --descanso: #0b6b5d;
-  --descanso-fondo: #dcf0ec;
-  --finalizada: #3d5296;
-  --finalizada-fondo: #e3e8f8;
+  --pendiente: #a9a09a;
+  --pendiente-fondo: #262322;
+  --activa: #ff9433;
+  --activa-fondo: #33200c;
+  --descanso: #5cb4f7;
+  --descanso-fondo: #11202e;
+  --finalizada: #a291ef;
+  --finalizada-fondo: #221d33;
 
-  /* Semánticos */
-  --peligro: #9e2620;
-  --peligro-fondo: #fbe4e2;
-  --alerta: #8a5a06;
-  --alerta-fondo: #fcf1da;
+  /* Semánticos, derivados de error/info del sistema de referencia */
+  --peligro: #ff6b6b;
+  --peligro-fondo: #331616;
+  --alerta: #ffb04d;
+  --alerta-fondo: #33260f;
 
-  /* Acento = el color del tiempo corriendo */
+  /* Acento: el naranja de marca es también el color del tiempo corriendo */
   --acento: var(--activa);
   --acento-fondo: var(--activa-fondo);
-  --acento-texto: #ffffff;
+  --acento-relleno: linear-gradient(115deg, #ff8c1a 0%, #f2530a 100%);
+  --acento-texto: #1b1005;
 
-  --foco: #2f6bd8;
+  --foco: #ffa64d;
 
   /* Tipografía */
-  --fuente-ui: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --fuente-display: 'Segoe UI Variable Display', 'Segoe UI Semibold', 'Segoe UI', system-ui, sans-serif;
-  --fuente-mono: 'Cascadia Mono', 'Consolas', ui-monospace, 'SFMono-Regular', monospace;
+  --fuente-ui: 'Inter Variable', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --fuente-mono: 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 
   --t-xs: 0.75rem;
   --t-sm: 0.8125rem;
@@ -62,9 +72,9 @@
   --t-md: 1.0625rem;
   --t-lg: 1.375rem;
   --t-xl: 1.875rem;
-  --t-crono: 3.25rem;
+  --t-crono: 3.5rem;
 
-  /* Espaciado y forma */
+  /* Espaciado */
   --e-1: 0.25rem;
   --e-2: 0.5rem;
   --e-3: 0.75rem;
@@ -73,85 +83,88 @@
   --e-6: 2rem;
   --e-7: 3rem;
 
-  --r-sm: 4px;
-  --r-md: 7px;
-  --r-lg: 11px;
+  /* Forma: 1rem es el radio normal del sistema de referencia */
+  --r-sm: 0.5rem;
+  --r-md: 0.75rem;
+  --r-lg: 1rem;
+  --r-xl: 1.5rem;
 
-  --sombra-1: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.04);
-  --sombra-2: 0 4px 12px rgb(16 24 40 / 0.08), 0 1px 3px rgb(16 24 40 / 0.05);
-  --sombra-3: 0 16px 44px rgb(16 24 40 / 0.18), 0 4px 12px rgb(16 24 40 / 0.10);
+  /* Sombras: geometría del sistema de referencia, alfa subido para fondo oscuro */
+  --sombra-1: 0 8px 20px rgb(0 0 0 / 0.32);
+  --sombra-2: 0 8px 30px rgb(0 0 0 / 0.4);
+  --sombra-3: 0 18px 50px rgb(0 0 0 / 0.55);
+
+  --escala: scale(1.03);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --fondo: #10141a;
-    --superficie: #181d25;
-    --superficie-2: #1f2630;
-    --superficie-3: #262e3a;
-    --borde: #2b3441;
-    --borde-fuerte: #3d4857;
-    --texto: #e7ebf2;
-    --texto-2: #a4aebd;
-    --texto-3: #7b8595;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --fondo: #f7f5f4;
+    --superficie: #ffffff;
+    --superficie-2: #faf8f7;
+    --superficie-3: #f2efed;
+    --borde: #eae5e2;
+    --borde-fuerte: #d5ceca;
+    --texto: #211d1a;
+    --texto-2: #6b625c;
+    --texto-3: #756b66;
 
-    --pendiente: #9daabb;
-    --pendiente-fondo: #222b36;
-    --activa: #f2ab63;
-    --activa-fondo: #33261a;
-    --descanso: #4fc9b1;
-    --descanso-fondo: #102b28;
-    --finalizada: #9ab0e6;
-    --finalizada-fondo: #1c2436;
+    --pendiente: #6b625c;
+    --pendiente-fondo: #efebe9;
+    --activa: #b85800;
+    --activa-fondo: #fff1e0;
+    --descanso: #0f6ea8;
+    --descanso-fondo: #e3f1fb;
+    --finalizada: #5b46a8;
+    --finalizada-fondo: #ece8fa;
 
-    --peligro: #f2897f;
-    --peligro-fondo: #331b1a;
-    --alerta: #e9b05c;
-    --alerta-fondo: #2e2416;
+    --peligro: #b3261e;
+    --peligro-fondo: #fdeae8;
+    --alerta: #8a5300;
+    --alerta-fondo: #fdf1de;
 
-    --acento: var(--activa);
-    --acento-fondo: var(--activa-fondo);
-    --acento-texto: #221708;
+    --acento-texto: #ffffff;
+    --acento-relleno: linear-gradient(115deg, #d96500 0%, #b83c04 100%);
 
-    --foco: #7aa7f5;
+    --foco: #b85800;
 
-    --sombra-1: 0 1px 2px rgb(0 0 0 / 0.4);
-    --sombra-2: 0 4px 12px rgb(0 0 0 / 0.45);
-    --sombra-3: 0 16px 44px rgb(0 0 0 / 0.6);
+    --sombra-1: 0 8px 20px rgb(29 14 40 / 0.1);
+    --sombra-2: 0 8px 30px rgb(29 14 40 / 0.15);
+    --sombra-3: 0 18px 50px rgb(29 14 40 / 0.22);
   }
 }
 
-:root[data-theme='dark'] {
-  --fondo: #10141a;
-  --superficie: #181d25;
-  --superficie-2: #1f2630;
-  --superficie-3: #262e3a;
-  --borde: #2b3441;
-  --borde-fuerte: #3d4857;
-  --texto: #e7ebf2;
-  --texto-2: #a4aebd;
-  --texto-3: #7b8595;
+:root[data-theme='light'] {
+  --fondo: #f7f5f4;
+  --superficie: #ffffff;
+  --superficie-2: #faf8f7;
+  --superficie-3: #f2efed;
+  --borde: #eae5e2;
+  --borde-fuerte: #d5ceca;
+  --texto: #211d1a;
+  --texto-2: #6b625c;
+  --texto-3: #756b66;
 
-  --pendiente: #9daabb;
-  --pendiente-fondo: #222b36;
-  --activa: #f2ab63;
-  --activa-fondo: #33261a;
-  --descanso: #4fc9b1;
-  --descanso-fondo: #102b28;
-  --finalizada: #9ab0e6;
-  --finalizada-fondo: #1c2436;
+  --pendiente: #6b625c;
+  --pendiente-fondo: #efebe9;
+  --activa: #b85800;
+  --activa-fondo: #fff1e0;
+  --descanso: #0f6ea8;
+  --descanso-fondo: #e3f1fb;
+  --finalizada: #5b46a8;
+  --finalizada-fondo: #ece8fa;
 
-  --peligro: #f2897f;
-  --peligro-fondo: #331b1a;
-  --alerta: #e9b05c;
-  --alerta-fondo: #2e2416;
+  --peligro: #b3261e;
+  --peligro-fondo: #fdeae8;
+  --alerta: #8a5300;
+  --alerta-fondo: #fdf1de;
 
-  --acento: var(--activa);
-  --acento-fondo: var(--activa-fondo);
-  --acento-texto: #221708;
+  --acento-texto: #ffffff;
+  --acento-relleno: linear-gradient(115deg, #d96500 0%, #b83c04 100%);
 
-  --foco: #7aa7f5;
+  --foco: #b85800;
 
-  --sombra-1: 0 1px 2px rgb(0 0 0 / 0.4);
-  --sombra-2: 0 4px 12px rgb(0 0 0 / 0.45);
-  --sombra-3: 0 16px 44px rgb(0 0 0 / 0.6);
+  --sombra-1: 0 8px 20px rgb(29 14 40 / 0.1);
+  --sombra-2: 0 8px 30px rgb(29 14 40 / 0.15);
+  --sombra-3: 0 18px 50px rgb(29 14 40 / 0.22);
 }

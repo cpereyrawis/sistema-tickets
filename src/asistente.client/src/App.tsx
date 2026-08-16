@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DialogoInterrupcion } from './componentes/DialogoInterrupcion';
+import { DialogoReapertura } from './componentes/DialogoReapertura';
 import { DialogoTickets } from './componentes/DialogoTickets';
 import { Modal } from './componentes/Modal';
 import { ETIQUETA_ACCION, aplicar } from './domain/maquinaEstados';
-import { formatearFechaLarga } from './domain/resumen';
+import {
+  filasExportacion,
+  formatearFechaLarga,
+  nombreArchivoExcel,
+} from './domain/resumen';
+import { descargar, generarXlsx } from './services/exportadorExcel';
 import type { Accion, Jornada, TicketRef, TipoAccion, Usuario } from './domain/tipos';
 import { PantallaLogin } from './pantallas/PantallaLogin';
 import { PantallaPanel } from './pantallas/PantallaPanel';
@@ -20,6 +26,7 @@ type Flujo =
   | { tipo: 'buscarTicket'; motivo: 'ComenzarDia' | 'FinTarea' | 'Interrupcion'; marca: number }
   | { tipo: 'interrupcionDatos'; ticket: TicketRef }
   | { tipo: 'confirmarFinEnDescanso' }
+  | { tipo: 'reabrir' }
   | { tipo: 'esquema' };
 
 type Tema = 'claro' | 'oscuro' | 'sistema';
@@ -30,6 +37,8 @@ export default function App() {
   const [flujo, setFlujo] = useState<Flujo>({ tipo: 'ninguno' });
   const [vista, setVista] = useState<'panel' | 'revision'>('panel');
   const [error, setError] = useState<string | null>(null);
+  const [nota, setNota] = useState<string | null>(null);
+  const [exportaciones, setExportaciones] = useState(0);
   const [enviando, setEnviando] = useState(false);
   const [ahora, setAhora] = useState(() => Date.now());
   const [tema, setTema] = useState<Tema>(() => almacen.leerTema());
@@ -84,9 +93,35 @@ export default function App() {
     [jornada, usuario, enviando],
   );
 
+  /**
+   * Genera y descarga el .xlsx sin pasar por la revisión.
+   * Registra la corrida para que las regeneraciones queden identificadas (FR-045).
+   */
+  const generarExcel = useCallback(() => {
+    if (!jornada || !usuario) return;
+    const filas = filasExportacion(jornada);
+    if (filas.length === 0) {
+      setError('La jornada no tiene tramos cerrados para exportar.');
+      return;
+    }
+
+    const nombre = nombreArchivoExcel(jornada, usuario.usuario);
+    descargar(generarXlsx(filas), nombre);
+    setExportaciones((n) => n + 1);
+    setError(null);
+
+    const cuenta = `${filas.length} ${filas.length === 1 ? 'fila' : 'filas'}`;
+    setNota(
+      exportaciones === 0
+        ? `Excel generado: ${nombre} · ${cuenta}.`
+        : `Excel regenerado (#${exportaciones}): ${nombre} · ${cuenta}.`,
+    );
+  }, [jornada, usuario, exportaciones]);
+
   /** Traduce el botón pulsado en un diálogo o en una acción directa. */
   function alPulsarAccion(accion: TipoAccion) {
     setError(null);
+    setNota(null);
     const marca = Date.now();
 
     switch (accion) {
@@ -165,14 +200,14 @@ export default function App() {
         </button>
       </header>
 
-      {error && (
+      {(error || nota) && (
         <div style={{ padding: '0 var(--e-5)', marginTop: 'var(--e-4)' }}>
           <div
-            className="aviso aviso--error"
+            className={error ? 'aviso aviso--error' : 'aviso aviso--info'}
             style={{ maxWidth: 1180, marginInline: 'auto' }}
             role="alert"
           >
-            {error}
+            {error ?? nota}
           </div>
         </div>
       )}
@@ -184,6 +219,12 @@ export default function App() {
           enviando={enviando}
           onAccion={alPulsarAccion}
           onRevisar={() => setVista('revision')}
+          onGenerarExcel={generarExcel}
+          onReabrir={() => {
+            setError(null);
+            setNota(null);
+            setFlujo({ tipo: 'reabrir' });
+          }}
         />
       ) : (
         <PantallaRevision
@@ -191,6 +232,8 @@ export default function App() {
           usuario={usuario}
           ahora={ahora}
           onVolver={() => setVista('panel')}
+          onGenerarExcel={generarExcel}
+          exportaciones={exportaciones}
         />
       )}
 
@@ -205,6 +248,8 @@ export default function App() {
           className="btn btn--sutil"
           onClick={() => {
             setError(null);
+            setNota(null);
+            setExportaciones(0);
             setJornada(construirJornadaEjemplo(usuario, Date.now()));
             setVista('panel');
           }}
@@ -216,6 +261,8 @@ export default function App() {
           disabled={!jornada}
           onClick={() => {
             setError(null);
+            setNota(null);
+            setExportaciones(0);
             setJornada(null);
             setVista('panel');
           }}
@@ -279,6 +326,24 @@ export default function App() {
               inicio,
               duracionMinutos: minutos,
               ahora: Date.now(),
+            })
+          }
+          onCancelar={() => setFlujo({ tipo: 'ninguno' })}
+        />
+      )}
+
+      {flujo.tipo === 'reabrir' && jornada && (
+        <DialogoReapertura
+          jornada={jornada}
+          ahora={ahora}
+          exportaciones={exportaciones}
+          enviando={enviando}
+          onConfirmar={(motivo, imputarIntervalo) =>
+            ejecutar({
+              tipo: 'ReabrirJornada',
+              ahora: Date.now(),
+              motivo,
+              imputarIntervalo,
             })
           }
           onCancelar={() => setFlujo({ tipo: 'ninguno' })}

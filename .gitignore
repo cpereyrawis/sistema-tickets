@@ -9,6 +9,10 @@ bin/
 obj/
 *.user
 
+# Visual Studio / IDE
+.vs/
+.idea/
+
 # Entorno
 .env
 .env.local

@@ -16,13 +16,23 @@ interface Props {
   enviando: boolean;
   onAccion: (accion: TipoAccion) => void;
   onRevisar: () => void;
+  onGenerarExcel: () => void;
+  onReabrir: () => void;
 }
 
 /**
  * Panel principal (§15.1): funciona como tablero de estado, no como formulario.
  * Abajo aparecen únicamente las acciones válidas para el estado actual.
  */
-export function PantallaPanel({ jornada, ahora, enviando, onAccion, onRevisar }: Props) {
+export function PantallaPanel({
+  jornada,
+  ahora,
+  enviando,
+  onAccion,
+  onRevisar,
+  onGenerarExcel,
+  onReabrir,
+}: Props) {
   const estado = jornada?.estado ?? 'Pendiente';
   const habilitadas = accionesHabilitadas(estado);
   const abierta = jornada ? sesionAbierta(jornada) : undefined;
@@ -126,9 +136,23 @@ export function PantallaPanel({ jornada, ahora, enviando, onAccion, onRevisar }:
           ))}
 
           {habilitadas.length === 0 && (
-            <button className="btn btn--principal btn--grande" onClick={onRevisar}>
-              Revisar jornada y generar Excel
-            </button>
+            <>
+              <button className="btn btn--grande" onClick={onRevisar}>
+                Revisar jornada
+              </button>
+              <button
+                className="btn btn--principal btn--grande"
+                onClick={onGenerarExcel}
+                disabled={jornada === null || jornada.sesiones.length === 0}
+              >
+                Generar Excel
+              </button>
+              {/* Corrección, no parte del flujo normal: se ofrece sin competir con los
+                  dos botones principales (§6, "salvo corrección autorizada"). */}
+              <button className="btn btn--sutil acciones__correccion" onClick={onReabrir}>
+                Reabrir jornada
+              </button>
+            </>
           )}
 
           {enviando && <span className="acciones__nota">Registrando…</span>}

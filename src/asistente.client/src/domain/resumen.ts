@@ -88,6 +88,21 @@ export function agruparPorTicket(jornada: Jornada, ahora: number): AgrupadoPorTi
   return [...mapa.values()].sort((a, b) => b.totalMs - a.totalMs);
 }
 
+/**
+ * Por qué existe el hueco que precede a una sesión, si es que es esperable.
+ * Devuelve null cuando el hueco no tiene explicación y debe reportarse como anomalía.
+ */
+export function causaHueco(sesion: Sesion): 'descanso' | 'reapertura' | null {
+  if (sesion.accionOrigen === 'RegresoDescanso') return 'descanso';
+  if (sesion.accionOrigen === 'ReabrirJornada') return 'reapertura';
+  return null;
+}
+
+export const ETIQUETA_HUECO: Record<'descanso' | 'reapertura', string> = {
+  descanso: 'Descanso — sin tiempo imputado',
+  reapertura: 'Jornada reabierta — intervalo sin imputar',
+};
+
 export interface Anomalia {
   tipo: 'hueco' | 'solapamiento';
   mensaje: string;
@@ -97,12 +112,28 @@ export interface Anomalia {
 
 /**
  * Detecta huecos y solapamientos (FR-041).
- * Los descansos son huecos legítimos: se reconocen porque la sesión que sigue
- * al hueco nació de la acción "RegresoDescanso", y no se reportan como anomalía.
+ * Los descansos y las reaperturas de jornada producen huecos legítimos: se reconocen
+ * por la acción que originó la sesión siguiente y no se reportan como anomalía.
  */
 export function detectarAnomalias(jornada: Jornada): Anomalia[] {
   const orden = sesionesOrdenadas(jornada).filter((s) => s.fin !== null);
   const out: Anomalia[] = [];
+
+  // Invariante de §6.1: el fin de una sesión nunca puede ser anterior a su inicio.
+  // El dominio no puede producirlo, pero un dato guardado o migrado sí: conviene
+  // gritarlo en la revisión antes de que se cuele en el Excel.
+  for (const s of orden) {
+    if ((s.fin as number) < s.inicio) {
+      out.push({
+        tipo: 'solapamiento',
+        desde: s.fin as number,
+        hasta: s.inicio,
+        mensaje: `El tramo de ${s.ticket.id} termina (${formatearHora(
+          s.fin as number,
+        )}) antes de empezar (${formatearHora(s.inicio)}). El registro está corrupto.`,
+      });
+    }
+  }
 
   for (let i = 1; i < orden.length; i += 1) {
     const previa = orden[i - 1];
@@ -110,7 +141,7 @@ export function detectarAnomalias(jornada: Jornada): Anomalia[] {
     const finPrevia = previa.fin as number;
 
     if (actual.inicio > finPrevia) {
-      if (actual.accionOrigen === 'RegresoDescanso') continue; // descanso: hueco esperado
+      if (causaHueco(actual) !== null) continue; // hueco esperado y explicado
       out.push({
         tipo: 'hueco',
         desde: finPrevia,
@@ -124,18 +155,6 @@ export function detectarAnomalias(jornada: Jornada): Anomalia[] {
         hasta: finPrevia,
         mensaje: `Solapamiento entre ${previa.ticket.id} y ${actual.ticket.id}.`,
       });
-    }
-  }
-  return out;
-}
-
-/** Intervalos de descanso, para dibujarlos en la línea temporal. */
-export function intervalosDescanso(jornada: Jornada): { inicio: number; fin: number }[] {
-  const orden = sesionesOrdenadas(jornada).filter((s) => s.fin !== null);
-  const out: { inicio: number; fin: number }[] = [];
-  for (let i = 1; i < orden.length; i += 1) {
-    if (orden[i].accionOrigen === 'RegresoDescanso') {
-      out.push({ inicio: orden[i - 1].fin as number, fin: orden[i].inicio });
     }
   }
   return out;

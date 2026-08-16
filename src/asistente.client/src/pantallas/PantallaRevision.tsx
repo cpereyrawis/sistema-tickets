@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { LineaTemporal } from '../componentes/LineaTemporal';
 import {
   agruparPorTicket,
@@ -6,6 +5,7 @@ import {
   filasExportacion,
   formatearDuracion,
   formatearFechaLarga,
+  formatearHora,
   nombreArchivoExcel,
   totalTrabajado,
 } from '../domain/resumen';
@@ -16,6 +16,9 @@ interface Props {
   usuario: Usuario;
   ahora: number;
   onVolver: () => void;
+  onGenerarExcel: () => void;
+  /** Cantidad de veces que ya se exportó esta jornada, para identificar regeneraciones. */
+  exportaciones: number;
 }
 
 /**
@@ -24,9 +27,14 @@ interface Props {
  * El prototipo NO genera el archivo: muestra exactamente las filas que se escribirían.
  * El mapeo definitivo depende de la plantilla corporativa, que todavía no se relevó.
  */
-export function PantallaRevision({ jornada, usuario, ahora, onVolver }: Props) {
-  const [exportaciones, setExportaciones] = useState(0);
-
+export function PantallaRevision({
+  jornada,
+  usuario,
+  ahora,
+  onVolver,
+  onGenerarExcel,
+  exportaciones,
+}: Props) {
   const grupos = agruparPorTicket(jornada, ahora);
   const anomalias = detectarAnomalias(jornada);
   const filas = filasExportacion(jornada);
@@ -71,9 +79,25 @@ export function PantallaRevision({ jornada, usuario, ahora, onVolver }: Props) {
             </div>
           </div>
 
+          {jornada.auditoria.length > 0 && (
+            <div className="apilar" style={{ gap: 'var(--e-2)' }}>
+              <span className="etiqueta">Correcciones registradas</span>
+              {jornada.auditoria.map((a) => (
+                <div key={a.id} className="aviso aviso--alerta">
+                  <div>
+                    <strong>{a.accion}</strong> · {formatearHora(a.ocurridoEn)} ·{' '}
+                    {usuario.usuario}
+                    <div style={{ marginTop: 3 }}>{a.detalle}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {anomalias.length === 0 ? (
             <div className="aviso aviso--info">
-              Sin huecos ni solapamientos. Los descansos no se cuentan como anomalía.
+              Sin huecos ni solapamientos. Los descansos y las reaperturas de jornada no se
+              cuentan como anomalía.
             </div>
           ) : (
             <div className="apilar" style={{ gap: 'var(--e-2)' }}>
@@ -167,14 +191,14 @@ export function PantallaRevision({ jornada, usuario, ahora, onVolver }: Props) {
             <button
               className="btn btn--principal"
               disabled={jornada.estado !== 'Finalizada' || filas.length === 0}
-              onClick={() => setExportaciones((n) => n + 1)}
+              onClick={onGenerarExcel}
             >
               Generar Excel
             </button>
             <span className="campo__ayuda">
               {jornada.estado !== 'Finalizada'
                 ? 'Disponible cuando la jornada esté finalizada.'
-                : `Se descargaría como ${nombreArchivoExcel(jornada, usuario.usuario)}`}
+                : `Se descarga como ${nombreArchivoExcel(jornada, usuario.usuario)}`}
             </span>
           </div>
 
@@ -191,9 +215,9 @@ export function PantallaRevision({ jornada, usuario, ahora, onVolver }: Props) {
                   · usuario <code className="mono">{usuario.usuario}</code>
                 </div>
                 <div style={{ marginTop: 4, color: 'var(--texto-3)' }}>
-                  El prototipo no escribe el archivo: sin la plantilla real no se puede
-                  cumplir su contrato. Queda registrada la corrida para demostrar FR-044 y
-                  FR-045.
+                  El archivo usa el perfil de columnas provisional, no la plantilla
+                  corporativa. Cuando exista la plantilla real, la generación pasa al
+                  backend con ClosedXML.
                 </div>
               </div>
             </div>

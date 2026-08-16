@@ -20,7 +20,8 @@ export type AccionOrigen =
   | 'RegistrarInterrupcion'
   | 'SalidaDescanso'
   | 'RegresoDescanso'
-  | 'FinDia';
+  | 'FinDia'
+  | 'ReabrirJornada';
 
 export interface TicketRef {
   id: string;
@@ -62,6 +63,18 @@ export interface Jornada {
   ticketPrincipal: TicketRef | null;
   sesiones: Sesion[];
   eventos: Evento[];
+  auditoria: EntradaAuditoria[];
+}
+
+/**
+ * Corrección manual registrada sobre la jornada (FR-035, NFR-007).
+ * Es append-only: nunca se borra ni se edita, para que la trazabilidad no se rompa.
+ */
+export interface EntradaAuditoria {
+  id: string;
+  accion: string;
+  ocurridoEn: number;
+  detalle: string;
 }
 
 export interface Usuario {
@@ -83,7 +96,19 @@ export type Accion =
     }
   | { tipo: 'SalidaDescanso'; ahora: number }
   | { tipo: 'RegresoDescanso'; ahora: number }
-  | { tipo: 'FinDia'; ahora: number; confirmadoEnDescanso?: boolean };
+  | { tipo: 'FinDia'; ahora: number; confirmadoEnDescanso?: boolean }
+  /** Corrección: revierte un cierre equivocado. No es una acción operativa normal. */
+  | {
+      tipo: 'ReabrirJornada';
+      ahora: number;
+      motivo: string;
+      /**
+       * Si es true, el tramo nuevo arranca en el momento del cierre, de modo que el
+       * intervalo transcurrido se computa como trabajo sobre la tarea principal.
+       * Si es false, ese intervalo queda como hueco sin imputar.
+       */
+      imputarIntervalo: boolean;
+    };
 
 export type TipoAccion = Accion['tipo'];
 

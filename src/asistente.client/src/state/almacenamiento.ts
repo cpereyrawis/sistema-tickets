@@ -30,11 +30,21 @@ function escribir(clave: string, valor: unknown): void {
   }
 }
 
+/**
+ * Las jornadas guardadas antes de existir la auditoría no traen el campo.
+ * Se completa al leer para que el resto del código pueda asumirlo siempre presente.
+ */
+function normalizar(j: Jornada | null): Jornada | null {
+  if (!j) return null;
+  return { ...j, auditoria: j.auditoria ?? [] };
+}
+
 export const almacen = {
-  leerJornada: () => leer<Jornada>(CLAVE_JORNADA),
+  leerJornada: () => normalizar(leer<Jornada>(CLAVE_JORNADA)),
   guardarJornada: (j: Jornada | null) => escribir(CLAVE_JORNADA, j),
   leerUsuario: () => leer<Usuario>(CLAVE_USUARIO),
   guardarUsuario: (u: Usuario | null) => escribir(CLAVE_USUARIO, u),
-  leerTema: () => leer<'claro' | 'oscuro' | 'sistema'>(CLAVE_TEMA) ?? 'sistema',
+  // El oscuro es el tema elegido para esta aplicación; el claro queda disponible.
+  leerTema: () => leer<'claro' | 'oscuro' | 'sistema'>(CLAVE_TEMA) ?? 'oscuro',
   guardarTema: (t: 'claro' | 'oscuro' | 'sistema') => escribir(CLAVE_TEMA, t),
 };

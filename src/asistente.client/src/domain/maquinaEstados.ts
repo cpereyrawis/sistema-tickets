@@ -12,6 +12,7 @@
 
 import type {
   Accion,
+  EntradaAuditoria,
   EstadoJornada,
   Evento,
   Jornada,
@@ -41,6 +42,17 @@ export function accionesHabilitadas(estado: EstadoJornada): TipoAccion[] {
     case 'Finalizada':
       return [];
   }
+}
+
+/**
+ * Correcciones autorizadas por estado.
+ *
+ * La tabla de §6 permite operar sobre una jornada cerrada "salvo corrección autorizada",
+ * y FR-035 exige que esa corrección quede auditada. Se mantienen separadas de las
+ * acciones operativas para que no aparezcan como un botón más del flujo normal.
+ */
+export function accionesCorreccion(estado: EstadoJornada): TipoAccion[] {
+  return estado === 'Finalizada' ? ['ReabrirJornada'] : [];
 }
 
 export function sesionAbierta(jornada: Jornada): Sesion | undefined {
@@ -86,6 +98,10 @@ function abrirSesion(
     accionOrigen,
     editada: false,
   };
+}
+
+function auditar(accion: string, ocurridoEn: number, detalle: string): EntradaAuditoria {
+  return { id: nuevoId('aud'), accion, ocurridoEn, detalle };
 }
 
 function error(codigo: string, mensaje: string): Resultado<Jornada> {
@@ -141,7 +157,8 @@ export function aplicar(
   const estado: EstadoJornada = jornada?.estado ?? 'Pendiente';
 
   // El dominio revalida siempre, aunque la interfaz haya ocultado el botón (§6).
-  if (!accionesHabilitadas(estado).includes(accion.tipo)) {
+  const permitidas = [...accionesHabilitadas(estado), ...accionesCorreccion(estado)];
+  if (!permitidas.includes(accion.tipo)) {
     return error(
       'ACCION_NO_VALIDA',
       `La acción no es válida en el estado "${etiquetaEstado(estado)}".`,
@@ -162,6 +179,7 @@ export function aplicar(
         ticketPrincipal: accion.ticket,
         sesiones: [sesion],
         eventos: [evento('InicioPrincipal', accion.ticket.id, accion.ahora, corr)],
+        auditoria: [],
       };
       return { ok: true, valor: nueva };
     }
@@ -317,6 +335,65 @@ export function aplicar(
         },
       };
     }
+
+    case 'ReabrirJornada': {
+      const j = jornada!;
+      const principal = j.ticketPrincipal;
+      if (!principal) {
+        return error('SIN_PRINCIPAL', 'La jornada no tiene una tarea principal para reanudar.');
+      }
+
+      const cerradaEn = j.fin;
+      const corr = nuevoId('corr');
+
+      /*
+        La reapertura nunca borra el cierre ni reescribe el tramo ya cerrado: siempre
+        agrega un tramo nuevo. Lo único que decide el usuario es dónde empieza.
+
+        · Sin imputar: el tramo arranca ahora y el intervalo queda como hueco.
+        · Imputando: el tramo arranca en el instante del cierre, de modo que ese
+          intervalo cuenta como trabajo sobre la tarea principal.
+
+        La decisión es del usuario porque solo él sabe si siguió trabajando después de
+        pulsar el botón por error. El dominio no lo adivina; se limita a registrar la
+        opción elegida en la auditoría.
+      */
+      const imputa = accion.imputarIntervalo && cerradaEn !== null;
+      const inicioTramo = imputa ? (cerradaEn as number) : accion.ahora;
+
+      const hora = (t: number) =>
+        new Date(t).toLocaleTimeString('es-AR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+
+      const detalle =
+        cerradaEn === null
+          ? `Motivo: ${accion.motivo}. Se reanudó ${principal.id}.`
+          : `Cerrada a las ${hora(cerradaEn)}. Motivo: ${accion.motivo}. Se reanudó ${
+              principal.id
+            } ${
+              imputa
+                ? `imputando el intervalo desde las ${hora(cerradaEn)} como trabajo sobre esa tarea.`
+                : 'sin imputar el intervalo intermedio.'
+            }`;
+
+      return {
+        ok: true,
+        valor: {
+          ...j,
+          estado: 'Activa',
+          fin: null,
+          sesiones: [
+            ...j.sesiones,
+            abrirSesion(principal, inicioTramo, 'Principal', 'ReabrirJornada'),
+          ],
+          eventos: [...j.eventos, evento('InicioPrincipal', principal.id, inicioTramo, corr)],
+          auditoria: [...j.auditoria, auditar('Reapertura de jornada', accion.ahora, detalle)],
+        },
+      };
+    }
   }
 }
 
@@ -341,4 +418,5 @@ export const ETIQUETA_ACCION: Record<TipoAccion, string> = {
   // Decisión D-5 del plan: se adopta la alternativa que la propia especificación sugiere.
   RegresoDescanso: 'Registrar regreso del descanso',
   FinDia: 'Registrar fin del día',
+  ReabrirJornada: 'Reabrir jornada',
 };
