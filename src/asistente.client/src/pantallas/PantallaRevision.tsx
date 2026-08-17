@@ -55,9 +55,9 @@ export function PantallaRevision({
       <section className="tarjeta">
         <header className="tarjeta__cabecera">
           <h2 className="tarjeta__titulo">
-            {formatearFechaLarga(jornada.inicio)}
+            {jornada.inicio !== null ? formatearFechaLarga(jornada.inicio) : 'Jornada'}
           </h2>
-          <span className="etiqueta">{jornada.eventos.length} eventos registrados</span>
+          <span className="etiqueta">{jornada.cantidadEventos} eventos registrados</span>
         </header>
         <div className="tarjeta__cuerpo">
           <div className="resumen-export">
@@ -82,8 +82,8 @@ export function PantallaRevision({
           {jornada.auditoria.length > 0 && (
             <div className="apilar" style={{ gap: 'var(--e-2)' }}>
               <span className="etiqueta">Correcciones registradas</span>
-              {jornada.auditoria.map((a) => (
-                <div key={a.id} className="aviso aviso--alerta">
+              {jornada.auditoria.map((a, i) => (
+                <div key={i} className="aviso aviso--alerta">
                   <div>
                     <strong>{a.accion}</strong> · {formatearHora(a.ocurridoEn)} ·{' '}
                     {usuario.usuario}

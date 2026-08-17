@@ -16,3 +16,11 @@ obj/
 # Entorno
 .env
 .env.local
+
+# Base de desarrollo SQLite: descartable y local a cada máquina
+*.db
+*.db-shm
+*.db-wal
+
+# Scratch de pruebas
+/tmp/

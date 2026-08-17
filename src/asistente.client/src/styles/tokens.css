@@ -21,8 +21,9 @@
 :root {
   color-scheme: dark light;
 
-  /* Neutros cálidos */
-  --fondo: #131110;
+  /* Neutros cálidos. El fondo es el color base del degradado Copper Shadow: las capas
+     de fusión componen contra él, así que vive en el body y no en el contenedor. */
+  --fondo: #100e0b;
   --superficie: #1c1a18;
   --superficie-2: #232120;
   --superficie-3: #2c2927;

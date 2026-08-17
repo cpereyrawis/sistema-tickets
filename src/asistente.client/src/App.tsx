@@ -3,27 +3,32 @@ import { DialogoInterrupcion } from './componentes/DialogoInterrupcion';
 import { DialogoReapertura } from './componentes/DialogoReapertura';
 import { DialogoTickets } from './componentes/DialogoTickets';
 import { Modal } from './componentes/Modal';
-import { ETIQUETA_ACCION, aplicar } from './domain/maquinaEstados';
+import { ETIQUETA_ACCION } from './domain/maquinaEstados';
 import {
   filasExportacion,
   formatearFechaLarga,
   nombreArchivoExcel,
 } from './domain/resumen';
-import { descargar, generarXlsx } from './services/exportadorExcel';
-import type { Accion, Jornada, TicketRef, TipoAccion, Usuario } from './domain/tipos';
+import type { Jornada, TicketRef, TipoAccion, Usuario } from './domain/tipos';
 import { PantallaLogin } from './pantallas/PantallaLogin';
 import { PantallaPanel } from './pantallas/PantallaPanel';
 import { PantallaRevision } from './pantallas/PantallaRevision';
-import { fallaActiva, simularFalla } from './services/ticketQueryService';
+import {
+  devApi,
+  ErrorApi,
+  fallaActiva,
+  fijarUsuario,
+  jornadaApi,
+  simularFalla,
+} from './services/api';
+import { descargar, generarXlsx } from './services/exportadorExcel';
 import { almacen } from './state/almacenamiento';
 import { ESQUEMA_SIMULADO } from './mock/esquema';
-import { construirJornadaEjemplo } from './mock/jornadaEjemplo';
 
 /** Diálogo abierto en este momento. */
 type Flujo =
   | { tipo: 'ninguno' }
-  /** `marca` es la marca temporal candidata capturada al pulsar el botón (§7.2). */
-  | { tipo: 'buscarTicket'; motivo: 'ComenzarDia' | 'FinTarea' | 'Interrupcion'; marca: number }
+  | { tipo: 'buscarTicket'; motivo: 'ComenzarDia' | 'FinTarea' | 'Interrupcion' }
   | { tipo: 'interrupcionDatos'; ticket: TicketRef }
   | { tipo: 'confirmarFinEnDescanso' }
   | { tipo: 'reabrir' }
@@ -33,19 +38,20 @@ type Tema = 'claro' | 'oscuro' | 'sistema';
 
 export default function App() {
   const [usuario, setUsuario] = useState<Usuario | null>(() => almacen.leerUsuario());
-  const [jornada, setJornada] = useState<Jornada | null>(() => almacen.leerJornada());
+  const [jornada, setJornada] = useState<Jornada | null>(null);
   const [flujo, setFlujo] = useState<Flujo>({ tipo: 'ninguno' });
   const [vista, setVista] = useState<'panel' | 'revision'>('panel');
   const [error, setError] = useState<string | null>(null);
   const [nota, setNota] = useState<string | null>(null);
   const [exportaciones, setExportaciones] = useState(0);
   const [enviando, setEnviando] = useState(false);
+  const [cargando, setCargando] = useState(true);
   const [ahora, setAhora] = useState(() => Date.now());
   const [tema, setTema] = useState<Tema>(() => almacen.leerTema());
   const [falla, setFalla] = useState(() => fallaActiva());
 
-  // Reloj del cronómetro. El tiempo transcurrido se calcula siempre desde la hora de
-  // inicio guardada, nunca acumulando en el cliente: así recargar no pierde precisión.
+  // Reloj del cronómetro. El transcurrido se calcula desde la hora de inicio que informa
+  // el servidor, no acumulando en el cliente: así recargar no pierde precisión.
   useEffect(() => {
     const id = setInterval(() => setAhora(Date.now()), 1000);
     return () => clearInterval(id);
@@ -59,44 +65,74 @@ export default function App() {
 
   useEffect(() => {
     almacen.guardarUsuario(usuario);
+    fijarUsuario(usuario?.id ?? null);
   }, [usuario]);
 
+  /** Traduce un fallo de la API en el mensaje que ve el usuario. */
+  const manejarError = useCallback((e: unknown) => {
+    if (e instanceof ErrorApi) setError(e.message);
+    else setError('No se pudo contactar el servidor. Verificá que el backend esté corriendo.');
+  }, []);
+
+  /** Recarga el estado vigente desde el servidor. */
+  const recargar = useCallback(async () => {
+    if (!usuario) return;
+    setCargando(true);
+    try {
+      setJornada(await jornadaApi.actual());
+      setError(null);
+    } catch (e) {
+      manejarError(e);
+    } finally {
+      setCargando(false);
+    }
+  }, [usuario, manejarError]);
+
   useEffect(() => {
-    almacen.guardarJornada(jornada);
-  }, [jornada]);
+    if (usuario) void recargar();
+  }, [usuario, recargar]);
+
+  // Al volver a la pestaña, el estado puede haber cambiado desde otro dispositivo.
+  useEffect(() => {
+    function alVolver() {
+      if (document.visibilityState === 'visible') void recargar();
+    }
+    document.addEventListener('visibilitychange', alVolver);
+    return () => document.removeEventListener('visibilitychange', alVolver);
+  }, [recargar]);
 
   /**
-   * Aplica una acción del dominio.
-   * `enviando` bloquea el doble envío mientras la operación está en curso (§15.3);
-   * la demora simula el viaje al backend que hará el sistema real.
+   * Ejecuta una transición contra el backend.
+   *
+   * `enviando` bloquea el doble envío mientras la operación está en curso (§15.3). El
+   * estado resultante NO se calcula acá: se toma tal cual lo devuelve el servidor.
    */
   const ejecutar = useCallback(
-    (accion: Accion) => {
-      if (!usuario || enviando) return;
+    async (operacion: () => Promise<Jornada>) => {
+      if (enviando) return;
       setEnviando(true);
       setError(null);
+      setNota(null);
 
-      setTimeout(() => {
-        const r = aplicar(jornada, accion, usuario);
-        if (r.ok) {
-          setJornada(r.valor);
-          setFlujo({ tipo: 'ninguno' });
-        } else if (r.codigo === 'CONFIRMACION_REQUERIDA') {
+      try {
+        setJornada(await operacion());
+        setFlujo({ tipo: 'ninguno' });
+      } catch (e) {
+        if (e instanceof ErrorApi && e.codigo === 'CONFIRMACION_REQUERIDA') {
           setFlujo({ tipo: 'confirmarFinEnDescanso' });
         } else {
-          setError(r.mensaje);
+          manejarError(e);
           setFlujo({ tipo: 'ninguno' });
+          // Ante un conflicto de estado, lo que ve el usuario ya no es válido.
+          if (e instanceof ErrorApi && e.status === 409) void recargar();
         }
+      } finally {
         setEnviando(false);
-      }, 180);
+      }
     },
-    [jornada, usuario, enviando],
+    [enviando, manejarError, recargar],
   );
 
-  /**
-   * Genera y descarga el .xlsx sin pasar por la revisión.
-   * Registra la corrida para que las regeneraciones queden identificadas (FR-045).
-   */
   const generarExcel = useCallback(() => {
     if (!jornada || !usuario) return;
     const filas = filasExportacion(jornada);
@@ -118,29 +154,30 @@ export default function App() {
     );
   }, [jornada, usuario, exportaciones]);
 
-  /** Traduce el botón pulsado en un diálogo o en una acción directa. */
+  /** Traduce el botón pulsado en un diálogo o en una llamada directa. */
   function alPulsarAccion(accion: TipoAccion) {
     setError(null);
     setNota(null);
-    const marca = Date.now();
 
     switch (accion) {
       case 'ComenzarDia':
       case 'FinTarea':
-        // La marca se captura ahora y solo se confirma al elegir ticket (§7.2, AC-04).
-        setFlujo({ tipo: 'buscarTicket', motivo: accion, marca });
+        setFlujo({ tipo: 'buscarTicket', motivo: accion });
         break;
       case 'RegistrarInterrupcion':
-        setFlujo({ tipo: 'buscarTicket', motivo: 'Interrupcion', marca });
+        setFlujo({ tipo: 'buscarTicket', motivo: 'Interrupcion' });
         break;
       case 'SalidaDescanso':
-        ejecutar({ tipo: 'SalidaDescanso', ahora: marca });
+        void ejecutar(jornadaApi.salidaDescanso);
         break;
       case 'RegresoDescanso':
-        ejecutar({ tipo: 'RegresoDescanso', ahora: marca });
+        void ejecutar(jornadaApi.regresoDescanso);
         break;
       case 'FinDia':
-        ejecutar({ tipo: 'FinDia', ahora: marca });
+        void ejecutar(() => jornadaApi.finDia());
+        break;
+      case 'ReabrirJornada':
+        setFlujo({ tipo: 'reabrir' });
         break;
     }
   }
@@ -152,10 +189,12 @@ export default function App() {
       setFlujo({ tipo: 'interrupcionDatos', ticket });
       return;
     }
-    ejecutar(
+
+    // La marca temporal la pone el servidor: es la única hora confiable (§7.1).
+    void ejecutar(() =>
       flujo.motivo === 'ComenzarDia'
-        ? { tipo: 'ComenzarDia', ticket, ahora: flujo.marca }
-        : { tipo: 'FinTarea', ticket, ahora: flujo.marca },
+        ? jornadaApi.comenzar(ticket.id)
+        : jornadaApi.finTarea(ticket.id),
     );
   }
 
@@ -182,9 +221,7 @@ export default function App() {
         <div className="barra__marca">
           <span className="barra__nombre">Asistente de Registro</span>
           <span className="barra__jornada">
-            {jornada
-              ? formatearFechaLarga(jornada.inicio)
-              : 'Sin jornada abierta'}
+            {jornada?.inicio ? formatearFechaLarga(jornada.inicio) : 'Sin jornada abierta'}
           </span>
         </div>
 
@@ -212,7 +249,13 @@ export default function App() {
         </div>
       )}
 
-      {vista === 'panel' || !jornada ? (
+      {cargando && !jornada ? (
+        <main className="contenido contenido--unica">
+          <div className="bloque">
+            <span className="bloque__titulo">Cargando la jornada…</span>
+          </div>
+        </main>
+      ) : vista === 'panel' || !jornada ? (
         <PantallaPanel
           jornada={jornada}
           ahora={ahora}
@@ -238,33 +281,34 @@ export default function App() {
       )}
 
       <footer className="pie">
-        <span>
-          Prototipo visual · datos simulados en memoria · sin consultas a base de datos
-        </span>
+        <span>Conectado al backend · datos de tickets simulados en el servidor</span>
         <button className="btn btn--sutil" onClick={() => setFlujo({ tipo: 'esquema' })}>
           Ver esquema simulado
         </button>
         <button
           className="btn btn--sutil"
+          disabled={enviando}
           onClick={() => {
-            setError(null);
             setNota(null);
-            setExportaciones(0);
-            setJornada(construirJornadaEjemplo(usuario, Date.now()));
-            setVista('panel');
+            void ejecutar(devApi.jornadaEjemplo);
           }}
         >
           Cargar jornada de ejemplo
         </button>
         <button
           className="btn btn--sutil"
-          disabled={!jornada}
+          disabled={enviando || !jornada?.id}
           onClick={() => {
-            setError(null);
             setNota(null);
             setExportaciones(0);
-            setJornada(null);
-            setVista('panel');
+            void (async () => {
+              try {
+                await devApi.reiniciar();
+                await recargar();
+              } catch (e) {
+                manejarError(e);
+              }
+            })();
           }}
         >
           Reiniciar jornada
@@ -279,7 +323,7 @@ export default function App() {
               simularFalla(e.target.checked);
             }}
           />
-          Simular caída de la fuente de tickets
+          Simular caída de la conexión
         </label>
 
         <label className="interruptor">
@@ -320,31 +364,7 @@ export default function App() {
           ticket={flujo.ticket}
           ahora={ahora}
           onConfirmar={(inicio, minutos) =>
-            ejecutar({
-              tipo: 'RegistrarInterrupcion',
-              ticket: flujo.ticket,
-              inicio,
-              duracionMinutos: minutos,
-              ahora: Date.now(),
-            })
-          }
-          onCancelar={() => setFlujo({ tipo: 'ninguno' })}
-        />
-      )}
-
-      {flujo.tipo === 'reabrir' && jornada && (
-        <DialogoReapertura
-          jornada={jornada}
-          ahora={ahora}
-          exportaciones={exportaciones}
-          enviando={enviando}
-          onConfirmar={(motivo, imputarIntervalo) =>
-            ejecutar({
-              tipo: 'ReabrirJornada',
-              ahora: Date.now(),
-              motivo,
-              imputarIntervalo,
-            })
+            void ejecutar(() => jornadaApi.interrupcion(flujo.ticket.id, inicio, minutos))
           }
           onCancelar={() => setFlujo({ tipo: 'ninguno' })}
         />
@@ -363,13 +383,7 @@ export default function App() {
               <button
                 className="btn btn--peligro"
                 disabled={enviando}
-                onClick={() =>
-                  ejecutar({
-                    tipo: 'FinDia',
-                    ahora: Date.now(),
-                    confirmadoEnDescanso: true,
-                  })
-                }
+                onClick={() => void ejecutar(() => jornadaApi.finDia(true))}
               >
                 Cerrar la jornada
               </button>
@@ -381,6 +395,19 @@ export default function App() {
             saliste al descanso y no se crea ninguna reanudación artificial.
           </p>
         </Modal>
+      )}
+
+      {flujo.tipo === 'reabrir' && jornada && (
+        <DialogoReapertura
+          jornada={jornada}
+          ahora={ahora}
+          exportaciones={exportaciones}
+          enviando={enviando}
+          onConfirmar={(motivo, imputarIntervalo) =>
+            void ejecutar(() => jornadaApi.reabrir(motivo, imputarIntervalo))
+          }
+          onCancelar={() => setFlujo({ tipo: 'ninguno' })}
+        />
       )}
 
       {flujo.tipo === 'esquema' && (

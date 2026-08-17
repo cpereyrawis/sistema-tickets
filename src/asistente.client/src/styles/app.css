@@ -58,6 +58,107 @@ code {
   }
 }
 
+/* ---------- Fondo ambiental (Copper Shadow) ---------- */
+
+/*
+  Capas decorativas fijas detrás de todo. `z-index: -1` las manda al fondo sin obligar a
+  tocar el apilamiento del contenido, y `mix-blend-mode` compone contra el color del body.
+*/
+.aura {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/*
+  En tema claro no se aplica. Los modos `screen` y `soft-light` están calibrados para un
+  fondo oscuro: sobre superficies claras el degradado se lava y solo queda un velo sucio.
+  Convertirlo a `multiply` teñiría de beige toda la interfaz, que no es lo que buscamos.
+*/
+:root[data-theme='light'] .aura {
+  display: none;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .aura {
+    display: none;
+  }
+}
+
+.aura__capa {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Promueve la capa a su propia superficie para que el desenfoque lo resuelva la GPU. */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Brasa naranja, arriba a la izquierda. */
+.aura__capa--1 {
+  background: radial-gradient(
+    circle at 30% 35%,
+    rgb(234 88 12 / 0.6) 0%,
+    transparent 45%
+  );
+  mix-blend-mode: screen;
+  filter: blur(113px);
+}
+
+/* Brasa ámbar más clara, arriba a la derecha. */
+.aura__capa--2 {
+  background: radial-gradient(
+    circle at 70% 30%,
+    rgb(251 146 60 / 0.5) 0%,
+    transparent 40%
+  );
+  mix-blend-mode: screen;
+  filter: blur(120px);
+}
+
+/* Rojo profundo abajo: `multiply` oscurece y da la sensación de las colinas en sombra. */
+.aura__capa--3 {
+  background: radial-gradient(
+    circle at 50% 75%,
+    rgb(153 27 27 / 0.4) 0%,
+    transparent 50%
+  );
+  mix-blend-mode: multiply;
+  filter: blur(120px);
+}
+
+/* Rescoldo dorado, abajo a la izquierda. */
+.aura__capa--4 {
+  background: radial-gradient(
+    circle at 20% 80%,
+    rgb(251 191 36 / 0.2) 0%,
+    transparent 35%
+  );
+  mix-blend-mode: overlay;
+  filter: blur(120px);
+}
+
+/* En pantallas grandes el desenfoque crece para que el degradado siga leyéndose difuso. */
+@media (min-width: 768px) {
+  .aura__capa--1 {
+    filter: blur(162px);
+  }
+
+  .aura__capa--2 {
+    filter: blur(180px);
+  }
+
+  .aura__capa--3 {
+    filter: blur(260px);
+  }
+
+  .aura__capa--4 {
+    filter: blur(198px);
+  }
+}
+
 /* ---------- Primitivas ---------- */
 
 /*
@@ -1064,7 +1165,7 @@ code {
   display: grid;
   place-items: center;
   padding: var(--e-5);
-  background: var(--fondo);
+  /* Sin fondo propio: el color base lo pone el body y encima va el degradado. */
 }
 
 .login__caja {

@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "asistente-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Asistente.Api", "--no-launch-profile", "--urls", "http://localhost:5290"],
+      "port": 5290
+    },
+    {
       "name": "asistente-client",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "src/asistente.client"],

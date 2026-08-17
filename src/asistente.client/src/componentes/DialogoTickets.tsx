@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal } from './Modal';
-import {
-  buscarClientes,
-  buscarTickets,
-  type ClienteDto,
-  type TicketDto,
-} from '../services/ticketQueryService';
+import { ticketsApi, type ClienteApi, type TicketApi } from '../services/api';
 import { formatearFecha, formatearHora } from '../domain/resumen';
 import type { TicketRef } from '../domain/tipos';
 
@@ -24,10 +19,10 @@ const TAMANO = 6;
  * Enter confirma la selección y Escape cancela sin cambios.
  */
 export function DialogoTickets({ titulo, contexto, onElegir, onCancelar }: Props) {
-  const [clientes, setClientes] = useState<ClienteDto[]>([]);
+  const [clientes, setClientes] = useState<ClienteApi[]>([]);
   const [clienteId, setClienteId] = useState('');
   const [texto, setTexto] = useState('');
-  const [tickets, setTickets] = useState<TicketDto[]>([]);
+  const [tickets, setTickets] = useState<TicketApi[]>([]);
   const [total, setTotal] = useState(0);
   const [pagina, setPagina] = useState(1);
   const [cargando, setCargando] = useState(true);
@@ -36,7 +31,8 @@ export function DialogoTickets({ titulo, contexto, onElegir, onCancelar }: Props
 
   useEffect(() => {
     let vigente = true;
-    buscarClientes('')
+    ticketsApi
+      .clientes()
       .then((c) => vigente && setClientes(c))
       .catch(() => vigente && setClientes([]));
     return () => {
@@ -51,7 +47,8 @@ export function DialogoTickets({ titulo, contexto, onElegir, onCancelar }: Props
 
     // Búsqueda incremental con una pausa corta, para no consultar en cada tecla.
     const id = setTimeout(() => {
-      buscarTickets({ clienteId: clienteId || undefined, texto, pagina, tamano: TAMANO })
+      ticketsApi
+        .buscar({ clienteId: clienteId || undefined, texto, pagina, tamano: TAMANO })
         .then((r) => {
           if (!vigente) return;
           setTickets(r.items);
@@ -74,14 +71,14 @@ export function DialogoTickets({ titulo, contexto, onElegir, onCancelar }: Props
   }, [clienteId, texto, pagina]);
 
   const elegido = useMemo(
-    () => tickets.find((t) => t.externalId === seleccionado) ?? null,
+    () => tickets.find((t) => t.ticketId === seleccionado) ?? null,
     [tickets, seleccionado],
   );
 
-  function confirmar(t: TicketDto | null) {
+  function confirmar(t: TicketApi | null) {
     if (!t) return;
     onElegir({
-      id: t.externalId,
+      id: t.ticketId,
       clienteId: t.clienteId,
       clienteNombre: t.clienteNombre,
       titulo: t.titulo,
@@ -185,10 +182,10 @@ export function DialogoTickets({ titulo, contexto, onElegir, onCancelar }: Props
           !cargando &&
           tickets.map((t) => (
             <button
-              key={t.externalId}
+              key={t.ticketId}
               className="ticket"
-              aria-selected={seleccionado === t.externalId}
-              onClick={() => setSeleccionado(t.externalId)}
+              aria-selected={seleccionado === t.ticketId}
+              onClick={() => setSeleccionado(t.ticketId)}
               onDoubleClick={() => confirmar(t)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -197,7 +194,7 @@ export function DialogoTickets({ titulo, contexto, onElegir, onCancelar }: Props
                 }
               }}
             >
-              <span className="ticket__id">{t.externalId}</span>
+              <span className="ticket__id">{t.ticketId}</span>
               <span className="ticket__medio">
                 <span className="ticket__titulo">{t.titulo}</span>
                 <span className="ticket__cliente">{t.clienteNombre}</span>

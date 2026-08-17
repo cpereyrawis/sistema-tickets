@@ -1,6 +1,6 @@
 import { LineaTemporal } from '../componentes/LineaTemporal';
 import { Pastilla } from '../componentes/Pastilla';
-import { ETIQUETA_ACCION, accionesHabilitadas, sesionAbierta } from '../domain/maquinaEstados';
+import { ETIQUETA_ACCION, sesionAbierta } from '../domain/maquinaEstados';
 import {
   duracionMs,
   formatearDuracion,
@@ -34,16 +34,19 @@ export function PantallaPanel({
   onReabrir,
 }: Props) {
   const estado = jornada?.estado ?? 'Pendiente';
-  const habilitadas = accionesHabilitadas(estado);
+  // Las acciones válidas las decide el servidor y viajan en la respuesta: la interfaz no
+  // las deduce del estado. Así no puede quedar desincronizada con el backend.
+  const habilitadas: TipoAccion[] = jornada?.accionesHabilitadas ?? ['ComenzarDia'];
   const abierta = jornada ? sesionAbierta(jornada) : undefined;
   const corriendo = estado === 'Activa' && abierta;
+  const finalizada = estado === 'Finalizada';
 
   return (
     <main className="contenido">
       <section className="tarjeta">
         <header className="tarjeta__cabecera">
           <Pastilla estado={estado} />
-          {jornada && (
+          {jornada?.inicio != null && (
             <span className="etiqueta">
               Inicio {formatearHora(jornada.inicio)}
               {jornada.fin !== null && ` · Cierre ${formatearHora(jornada.fin)}`}
@@ -76,8 +79,8 @@ export function PantallaPanel({
             <div className="estado__vacio">
               <span className="estado__vacio-titulo">Día finalizado</span>
               <span>
-                La jornada del {formatearFechaLarga(jornada.inicio)} está cerrada. Podés
-                revisarla y generar el Excel.
+                La jornada{jornada.inicio !== null && ` del ${formatearFechaLarga(jornada.inicio)}`}{' '}
+                está cerrada. Podés revisarla y generar el Excel.
               </span>
             </div>
           )}
@@ -122,7 +125,9 @@ export function PantallaPanel({
         </div>
 
         <div
-          className={habilitadas.length === 1 ? 'acciones acciones--una' : 'acciones'}
+          className={
+            habilitadas.length === 1 && !finalizada ? 'acciones acciones--una' : 'acciones'
+          }
         >
           {habilitadas.map((a) => (
             <button
@@ -135,7 +140,7 @@ export function PantallaPanel({
             </button>
           ))}
 
-          {habilitadas.length === 0 && (
+          {finalizada && (
             <>
               <button className="btn btn--grande" onClick={onRevisar}>
                 Revisar jornada

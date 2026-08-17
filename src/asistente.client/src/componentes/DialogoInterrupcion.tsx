@@ -29,7 +29,7 @@ function desdeHoraLocal(hhmm: string, referencia: number): number | null {
 }
 
 function inicioSugerido(jornada: Jornada, ahora: number): number {
-  const limite = sesionAbierta(jornada)?.inicio ?? jornada.inicio;
+  const limite = sesionAbierta(jornada)?.inicio ?? jornada.inicio ?? ahora;
   return Math.max(limite, ahora - 15 * 60_000);
 }
 

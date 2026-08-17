@@ -1,10 +1,12 @@
-# Prototipo visual — Asistente de Registro de Tareas
+# Frontend — Asistente de Registro de Tareas
 
-Prototipo **estrictamente visual** de la especificación v2.0. Sirve para validar los flujos
-de jornada y la interfaz antes de construir el backend.
+Interfaz React conectada al backend `Asistente.Api`. **Necesita el backend corriendo**:
+el estado de la jornada lo decide y lo guarda el servidor.
+
+Hay que levantar los dos procesos:
 
 ```bash
-npm install --prefix src/asistente.client
+dotnet run --project src/Asistente.Api --no-launch-profile --urls http://localhost:5290
 ```
 
 ```bash
@@ -13,18 +15,23 @@ npm run dev --prefix src/asistente.client
 
 Abre en `http://localhost:5173`. Usuarios: `cpereyra`, `mlopez` o `jdominguez`; contraseña `demo`.
 
+Vite hace de proxy de `/api` hacia el backend, así que el navegador ve un solo origen y no
+hace falta CORS. En producción el frontend compilado se sirve desde la misma aplicación
+ASP.NET Core y la situación es idéntica (§11.2).
+
 ## Qué es real y qué está simulado
 
-| Área | En el prototipo | En el sistema final |
+| Área | Hoy | En el sistema final |
 |---|---|---|
-| Máquina de estados | Implementada completa, como función pura en el cliente | Misma lógica en `Asistente.Domain`, ejecutada en el backend |
-| Datos de tickets | Arreglo en memoria (`src/mock/datos.ts`) con latencia artificial | Vista corporativa de solo lectura vía `ITicketQueryService` |
-| Autenticación | Lista simulada, sin SSO | Cookie ASP.NET Core + `IUserAuthenticator` |
-| Persistencia | `localStorage`, solo para demostrar que recargar conserva el estado | SQL Server + EF Core, una transacción por transición |
-| Excel | Genera un `.xlsx` real en el navegador con un perfil de columnas provisional | ClosedXML en el backend, sobre la plantilla corporativa real |
+| Máquina de estados | Real, en el backend. El cliente recibe estado y acciones válidas | Igual |
+| Persistencia | Real, EF Core. SQLite en desarrollo, Oracle como destino | Oracle |
+| Datos de tickets | Simulados **en el servidor** (`TicketQueryServiceSimulado`) | Vista corporativa read-only tras la misma interfaz |
+| Autenticación | Cabecera `X-Usuario-Id` de desarrollo | Cookie ASP.NET Core |
+| Excel | Se genera en el navegador con un perfil de columnas provisional | ClosedXML en el backend, sobre la plantilla real |
 
-**No hay ninguna consulta a base de datos.** El esquema que el prototipo asume está
-documentado en `src/mock/esquema.ts` y se puede ver desde el pie de la aplicación.
+El cliente ya no calcula transiciones: solo conserva las etiquetas de los botones y un
+espejo de la validación de interrupciones, para avisar antes de enviar. El backend la
+vuelve a aplicar siempre.
 
 ## Comportamientos de la especificación que el prototipo demuestra
 

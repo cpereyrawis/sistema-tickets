@@ -31,7 +31,7 @@ function segmentos(jornada: Jornada, ahora: number): Segmento[] {
       });
     }
     out.push({
-      clave: s.id,
+      clave: String(s.id),
       clase: s.tipo,
       inicio: s.inicio,
       fin: s.fin ?? ahora,

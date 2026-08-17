@@ -1,20 +1,25 @@
 /**
  * Tipos del dominio de jornada.
- * Reflejan el modelo de datos de la sección 13 de la especificación, adaptados al prototipo.
- * Todos los instantes se guardan como epoch en milisegundos (equivalente a UTC).
+ *
+ * Reflejan los DTO que devuelve el backend. Los instantes llegan como texto ISO y el
+ * cliente de API los convierte a epoch en milisegundos, para que los cálculos de la
+ * interfaz trabajen con números y no con strings.
  */
 
 export type EstadoJornada = 'Pendiente' | 'Activa' | 'EnDescanso' | 'Finalizada';
 
 export type TipoSesion = 'Principal' | 'Interrupcion';
 
-export type TipoEvento =
-  | 'InicioPrincipal'
-  | 'FinPrincipal'
-  | 'InicioInterrupcion'
-  | 'FinInterrupcion';
-
 export type AccionOrigen =
+  | 'ComenzarDia'
+  | 'FinTarea'
+  | 'RegistrarInterrupcion'
+  | 'SalidaDescanso'
+  | 'RegresoDescanso'
+  | 'FinDia'
+  | 'ReabrirJornada';
+
+export type TipoAccion =
   | 'ComenzarDia'
   | 'FinTarea'
   | 'RegistrarInterrupcion'
@@ -31,7 +36,7 @@ export interface TicketRef {
 }
 
 export interface Sesion {
-  id: string;
+  id: number;
   ticket: TicketRef;
   tipo: TipoSesion;
   /** epoch ms */
@@ -42,39 +47,33 @@ export interface Sesion {
   editada: boolean;
 }
 
-export interface Evento {
-  id: string;
-  ticketId: string;
-  tipo: TipoEvento;
-  ocurridoEn: number;
-  /** Comparten CorrelationId los cuatro eventos de una interrupción (§13.1). */
-  correlationId: string;
-  creadoEn: number;
-}
-
-export interface Jornada {
-  id: string;
-  usuarioId: string;
-  /** Fecha local de la jornada; se fija al comenzar el día y no cambia aunque cruce medianoche. */
-  fechaLocal: string;
-  inicio: number;
-  fin: number | null;
-  estado: EstadoJornada;
-  ticketPrincipal: TicketRef | null;
-  sesiones: Sesion[];
-  eventos: Evento[];
-  auditoria: EntradaAuditoria[];
-}
-
-/**
- * Corrección manual registrada sobre la jornada (FR-035, NFR-007).
- * Es append-only: nunca se borra ni se edita, para que la trazabilidad no se rompa.
- */
 export interface EntradaAuditoria {
-  id: string;
   accion: string;
   ocurridoEn: number;
   detalle: string;
+}
+
+/**
+ * Estado de la jornada tal como lo reporta el servidor.
+ *
+ * Incluye las acciones válidas: la interfaz no las deduce del estado, las recibe. El
+ * backend es la autoridad y el cliente se limita a dibujar lo que le dicen.
+ */
+export interface Jornada {
+  id: number | null;
+  estado: EstadoJornada;
+  fechaLocal: string | null;
+  /** epoch ms */
+  inicio: number | null;
+  fin: number | null;
+  ticketPrincipal: TicketRef | null;
+  sesionAbierta: Sesion | null;
+  sesiones: Sesion[];
+  auditoria: EntradaAuditoria[];
+  cantidadEventos: number;
+  accionesHabilitadas: TipoAccion[];
+  accionesCorreccion: TipoAccion[];
+  version: number;
 }
 
 export interface Usuario {
@@ -82,36 +81,3 @@ export interface Usuario {
   usuario: string;
   nombre: string;
 }
-
-/** Acciones que puede recibir la máquina de estados. */
-export type Accion =
-  | { tipo: 'ComenzarDia'; ticket: TicketRef; ahora: number }
-  | { tipo: 'FinTarea'; ticket: TicketRef; ahora: number }
-  | {
-      tipo: 'RegistrarInterrupcion';
-      ticket: TicketRef;
-      inicio: number;
-      duracionMinutos: number;
-      ahora: number;
-    }
-  | { tipo: 'SalidaDescanso'; ahora: number }
-  | { tipo: 'RegresoDescanso'; ahora: number }
-  | { tipo: 'FinDia'; ahora: number; confirmadoEnDescanso?: boolean }
-  /** Corrección: revierte un cierre equivocado. No es una acción operativa normal. */
-  | {
-      tipo: 'ReabrirJornada';
-      ahora: number;
-      motivo: string;
-      /**
-       * Si es true, el tramo nuevo arranca en el momento del cierre, de modo que el
-       * intervalo transcurrido se computa como trabajo sobre la tarea principal.
-       * Si es false, ese intervalo queda como hueco sin imputar.
-       */
-      imputarIntervalo: boolean;
-    };
-
-export type TipoAccion = Accion['tipo'];
-
-export type Resultado<T> =
-  | { ok: true; valor: T }
-  | { ok: false; codigo: string; mensaje: string };
