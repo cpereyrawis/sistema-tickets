@@ -1,37 +1,50 @@
 import { useState, type FormEvent } from 'react';
-import { CLAVE_DEMO, USUARIOS } from '../mock/datos';
-import type { Usuario } from '../domain/tipos';
+import { CampoClave } from '../componentes/CampoClave';
+import { authApi, ErrorApi, type SesionApi } from '../services/api';
+
+interface Props {
+  onEntrar: (sesion: SesionApi) => void;
+  onIrARegistro: () => void;
+  onIrAOlvido: () => void;
+}
 
 /**
- * Inicio de sesión propio, sin SSO (decisión explícita para el prototipo).
+ * Inicio de sesión.
  *
- * Valida contra la lista simulada de `mock/datos.ts`. En el sistema real esta pantalla
- * envía las credenciales al backend, que emite una cookie cifrada y descarta la
- * contraseña de inmediato: el navegador nunca ve credenciales de base de datos (FR-003).
+ * Las credenciales viajan al backend, que valida y emite una cookie cifrada. La contraseña
+ * no se guarda en ningún estado persistente del cliente ni vuelve en la respuesta
+ * (FR-003, AC-16).
  */
-export function PantallaLogin({ onEntrar }: { onEntrar: (u: Usuario) => void }) {
-  const [usuario, setUsuario] = useState('cpereyra');
+export function PantallaLogin({ onEntrar, onIrARegistro, onIrAOlvido }: Props) {
+  const [usuario, setUsuario] = useState('');
   const [clave, setClave] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
-  function enviar(e: FormEvent) {
+  async function enviar(e: FormEvent) {
     e.preventDefault();
-    const fila = USUARIOS.find(
-      (u) => u.USUARIO.toLowerCase() === usuario.trim().toLowerCase() && u.ACTIVO,
-    );
-    // Mensaje genérico: no revela si falló el usuario o la contraseña.
-    if (!fila || clave !== CLAVE_DEMO) {
-      setError('Usuario o contraseña incorrectos.');
-      return;
+    if (enviando) return;
+
+    setEnviando(true);
+    setError(null);
+
+    try {
+      onEntrar(await authApi.login(usuario.trim(), clave));
+    } catch (e) {
+      // El backend responde igual ante usuario inexistente y contraseña equivocada; acá
+      // solo se muestra lo que dijo, sin agregar pistas.
+      setError(e instanceof ErrorApi ? e.message : 'No se pudo contactar el servidor.');
+      setClave('');
+    } finally {
+      setEnviando(false);
     }
-    onEntrar({ id: fila.USUARIO_ID, usuario: fila.USUARIO, nombre: fila.NOMBRE_COMPLETO });
   }
 
   return (
     <div className="login">
       <div className="login__caja">
         <div className="login__marca">
-          <span className="etiqueta">Prototipo visual</span>
+          <span className="etiqueta">Iniciar sesión</span>
           <h1 className="login__titulo">Asistente de Registro de Tareas</h1>
           <p className="login__bajada">
             Registrar el trabajo debe requerir menos atención que realizarlo.
@@ -52,37 +65,37 @@ export function PantallaLogin({ onEntrar }: { onEntrar: (u: Usuario) => void }) 
                 setError(null);
               }}
               autoComplete="username"
+              required
             />
           </div>
 
-          <div className="campo">
-            <label className="campo__etiqueta" htmlFor="l-clave">
-              Contraseña
-            </label>
-            <input
-              id="l-clave"
-              className="entrada"
-              type="password"
-              value={clave}
-              onChange={(e) => {
-                setClave(e.target.value);
-                setError(null);
-              }}
-              autoComplete="current-password"
-            />
-          </div>
+          <CampoClave id="l-clave" etiqueta="Contraseña" valor={clave} onCambiar={setClave} />
 
-          {error && <div className="aviso aviso--error">{error}</div>}
+          {error && (
+            <div className="aviso aviso--error" role="alert">
+              {error}
+            </div>
+          )}
 
-          <button className="btn btn--principal btn--grande" type="submit">
-            Iniciar sesión
+          <button
+            className="btn btn--principal btn--grande"
+            type="submit"
+            disabled={enviando || usuario.trim() === '' || clave === ''}
+          >
+            {enviando ? 'Ingresando…' : 'Iniciar sesión'}
           </button>
 
           <div className="login__demo">
-            <span>Datos simulados para probar el prototipo:</span>
             <span>
-              usuario <code>cpereyra</code>, <code>mlopez</code> o <code>jdominguez</code> ·
-              contraseña <code>{CLAVE_DEMO}</code>
+              <button type="button" className="enlace" onClick={onIrAOlvido}>
+                Olvidé mi contraseña
+              </button>
+            </span>
+            <span>
+              ¿No tenés cuenta?{' '}
+              <button type="button" className="enlace" onClick={onIrARegistro}>
+                Registrate
+              </button>
             </span>
           </div>
         </form>

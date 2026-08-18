@@ -1,6 +1,7 @@
 using Asistente.Api.Security;
 using Asistente.Common;
 using Asistente.Domain.Dtos;
+using Asistente.Domain.Services;
 using Asistente.Domain.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,6 +16,7 @@ namespace Asistente.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/jornada")]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [Produces("application/json")]
 public sealed class JornadaController : ControllerBase
 {
@@ -32,24 +34,24 @@ public sealed class JornadaController : ControllerBase
     [ProducesResponseType<EstadoJornadaDto>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Actual(CancellationToken ct)
     {
-        if (_usuario.UserId is not { } userId) return Unauthorized();
-        return Ok(await _servicio.ObtenerEstadoAsync(userId, ct));
+        if (_usuario.Actual is not { } usuario) return Unauthorized();
+        return Ok(await _servicio.ObtenerEstadoAsync(usuario, ct));
     }
 
     /// <summary>Comenzar el día seleccionando el ticket de la primera tarea principal.</summary>
     [HttpPost("comenzar")]
     public Task<IActionResult> Comenzar([FromBody] ComenzarDiaRequest request, CancellationToken ct) =>
-        Ejecutar((userId, c) => _servicio.ComenzarDiaAsync(userId, request, c), ct);
+        Ejecutar((usuario, c) => _servicio.ComenzarDiaAsync(usuario, request, c), ct);
 
     /// <summary>Cierra la tarea vigente e inicia la siguiente en la misma marca temporal.</summary>
     [HttpPost("fin-tarea")]
     public Task<IActionResult> FinTarea([FromBody] FinTareaRequest request, CancellationToken ct) =>
-        Ejecutar((userId, c) => _servicio.FinTareaAsync(userId, request, c), ct);
+        Ejecutar((usuario, c) => _servicio.FinTareaAsync(usuario, request, c), ct);
 
     /// <summary>Registra una interrupción: cuatro eventos y reanudación automática.</summary>
     [HttpPost("interrupcion")]
     public Task<IActionResult> Interrupcion([FromBody] InterrupcionRequest request, CancellationToken ct) =>
-        Ejecutar((userId, c) => _servicio.RegistrarInterrupcionAsync(userId, request, c), ct);
+        Ejecutar((usuario, c) => _servicio.RegistrarInterrupcionAsync(usuario, request, c), ct);
 
     /// <summary>Salida al descanso: cierra la sesión principal sin imputar tiempo.</summary>
     [HttpPost("descanso/salida")]
@@ -64,22 +66,22 @@ public sealed class JornadaController : ControllerBase
     /// <summary>Cierra la sesión y la jornada.</summary>
     [HttpPost("fin-dia")]
     public Task<IActionResult> FinDia([FromBody] FinDiaRequest request, CancellationToken ct) =>
-        Ejecutar((userId, c) => _servicio.FinDiaAsync(userId, request, c), ct);
+        Ejecutar((usuario, c) => _servicio.FinDiaAsync(usuario, request, c), ct);
 
     /// <summary>Reabre una jornada cerrada por error, como corrección auditada.</summary>
     [HttpPost("reabrir")]
     public Task<IActionResult> Reabrir([FromBody] ReabrirRequest request, CancellationToken ct) =>
-        Ejecutar((userId, c) => _servicio.ReabrirAsync(userId, request, c), ct);
+        Ejecutar((usuario, c) => _servicio.ReabrirAsync(usuario, request, c), ct);
 
     // ---------- Apoyo ----------
 
     private async Task<IActionResult> Ejecutar(
-        Func<long, CancellationToken, Task<Resultado<EstadoJornadaDto>>> operacion,
+        Func<UsuarioActual, CancellationToken, Task<Resultado<EstadoJornadaDto>>> operacion,
         CancellationToken ct)
     {
-        if (_usuario.UserId is not { } userId) return Unauthorized();
+        if (_usuario.Actual is not { } usuario) return Unauthorized();
 
-        var resultado = await operacion(userId, ct);
+        var resultado = await operacion(usuario, ct);
         if (resultado.Ok) return Ok(resultado.Valor);
 
         return Problem(

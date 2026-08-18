@@ -16,6 +16,7 @@ namespace Asistente.Api.Controllers;
 [Route("api/dev")]
 [Produces("application/json")]
 [SoloDesarrollo]
+[Microsoft.AspNetCore.Authorization.Authorize]
 public sealed class DevController : ControllerBase
 {
     private readonly AsistenteDbContext _db;
@@ -47,9 +48,9 @@ public sealed class DevController : ControllerBase
     [ProducesResponseType<EstadoJornadaDto>(StatusCodes.Status200OK)]
     public async Task<IActionResult> JornadaEjemplo(CancellationToken ct)
     {
-        if (_usuario.UserId is not { } userId) return Unauthorized();
+        if (_usuario.Actual is not { } usuario) return Unauthorized();
 
-        await BorrarJornadasAsync(userId, ct);
+        await BorrarJornadasAsync(usuario.Id, ct);
 
         var ahora = _reloj.AhoraUtc;
         var t0 = ahora.AddMinutes(-300);
@@ -58,7 +59,7 @@ public sealed class DevController : ControllerBase
             new(id, cliId, cli, titulo);
 
         var jornada = Workday.Comenzar(
-            userId,
+            usuario.Id,
             Ticket("SUP-14892", "CLI-001", "Molinos del Norte S.A.",
                 "Error al generar remito de salida en depósito 3"),
             t0,
@@ -82,7 +83,7 @@ public sealed class DevController : ControllerBase
         _db.Jornadas.Add(jornada);
         await _db.SaveChangesAsync(ct);
 
-        return Ok(await _servicio.ObtenerEstadoAsync(userId, ct));
+        return Ok(await _servicio.ObtenerEstadoAsync(usuario, ct));
     }
 
     /// <summary>Borra las jornadas del usuario para volver al estado inicial.</summary>
@@ -90,9 +91,9 @@ public sealed class DevController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Reiniciar(CancellationToken ct)
     {
-        if (_usuario.UserId is not { } userId) return Unauthorized();
+        if (_usuario.Actual is not { } usuario) return Unauthorized();
 
-        await BorrarJornadasAsync(userId, ct);
+        await BorrarJornadasAsync(usuario.Id, ct);
         await _db.SaveChangesAsync(ct);
 
         return NoContent();

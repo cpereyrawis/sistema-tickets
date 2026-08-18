@@ -9,17 +9,24 @@ import {
   formatearFechaLarga,
   nombreArchivoExcel,
 } from './domain/resumen';
-import type { Jornada, TicketRef, TipoAccion, Usuario } from './domain/tipos';
+import type { Jornada, TicketRef, TipoAccion } from './domain/tipos';
 import { PantallaLogin } from './pantallas/PantallaLogin';
+import { PantallaRegistro } from './pantallas/PantallaRegistro';
+import {
+  PantallaOlvidoClave,
+  PantallaRestablecerClave,
+  PantallaVerificarEmail,
+} from './pantallas/PantallaClave';
 import { PantallaPanel } from './pantallas/PantallaPanel';
 import { PantallaRevision } from './pantallas/PantallaRevision';
 import {
+  authApi,
   devApi,
   ErrorApi,
   fallaActiva,
-  fijarUsuario,
   jornadaApi,
   simularFalla,
+  type SesionApi,
 } from './services/api';
 import { descargar, generarXlsx } from './services/exportadorExcel';
 import { almacen } from './state/almacenamiento';
@@ -36,8 +43,36 @@ type Flujo =
 
 type Tema = 'claro' | 'oscuro' | 'sistema';
 
+type Ruta =
+  | { nombre: 'login' }
+  | { nombre: 'registro' }
+  | { nombre: 'olvido' }
+  | { nombre: 'restablecer'; token: string }
+  | { nombre: 'verificar'; token: string };
+
+/**
+ * Enrutado mínimo por URL. Los enlaces que van por correo apuntan a rutas concretas, así
+ * que la aplicación tiene que poder abrirse directamente en ellas.
+ */
+function rutaActual(): Ruta {
+  const ruta = window.location.pathname;
+  const token = new URLSearchParams(window.location.search).get('token') ?? '';
+
+  if (ruta.startsWith('/verificar-email')) return { nombre: 'verificar', token };
+  if (ruta.startsWith('/restablecer-clave')) return { nombre: 'restablecer', token };
+  if (ruta.startsWith('/registro')) return { nombre: 'registro' };
+  if (ruta.startsWith('/olvido-clave')) return { nombre: 'olvido' };
+  return { nombre: 'login' };
+}
+
+function navegar(ruta: string): void {
+  window.history.pushState({}, '', ruta);
+}
+
 export default function App() {
-  const [usuario, setUsuario] = useState<Usuario | null>(() => almacen.leerUsuario());
+  const [usuario, setUsuario] = useState<SesionApi | null>(null);
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
+  const [ruta, setRuta] = useState<Ruta>(() => rutaActual());
   const [jornada, setJornada] = useState<Jornada | null>(null);
   const [flujo, setFlujo] = useState<Flujo>({ tipo: 'ninguno' });
   const [vista, setVista] = useState<'panel' | 'revision'>('panel');
@@ -63,10 +98,22 @@ export default function App() {
     almacen.guardarTema(tema);
   }, [tema]);
 
+  // Al montar se pregunta al servidor si la cookie sigue siendo válida. Es lo que permite
+  // recargar sin volver a escribir la contraseña, y también que la sesión caiga sola
+  // cuando la cookie expira.
   useEffect(() => {
-    almacen.guardarUsuario(usuario);
-    fijarUsuario(usuario?.id ?? null);
-  }, [usuario]);
+    let vigente = true;
+
+    authApi
+      .sesion()
+      .then((s) => vigente && setUsuario(s))
+      .catch(() => vigente && setUsuario(null))
+      .finally(() => vigente && setVerificandoSesion(false));
+
+    return () => {
+      vigente = false;
+    };
+  }, []);
 
   /** Traduce un fallo de la API en el mensaje que ve el usuario. */
   const manejarError = useCallback((e: unknown) => {
@@ -199,17 +246,57 @@ export default function App() {
   }
 
   function cerrarSesion() {
+    // Se pide al servidor que elimine la cookie. Limpiarla solo del lado del cliente
+    // dejaría una sesión válida circulando.
+    void authApi.logout().catch(() => {});
     setUsuario(null);
     setJornada(null);
     setVista('panel');
     setFlujo({ tipo: 'ninguno' });
+    irA('login');
+  }
+
+  function irA(nombre: 'login' | 'registro' | 'olvido') {
+    const rutas = { login: '/', registro: '/registro', olvido: '/olvido-clave' };
+    navegar(rutas[nombre]);
+    setRuta(nombre === 'login' ? { nombre: 'login' } : { nombre });
+  }
+
+  if (verificandoSesion) {
+    return (
+      <div className="login">
+        <div className="bloque">
+          <span className="bloque__titulo">Verificando tu sesión…</span>
+        </div>
+      </div>
+    );
   }
 
   if (!usuario) {
-    return <PantallaLogin onEntrar={setUsuario} />;
+    switch (ruta.nombre) {
+      case 'registro':
+        return <PantallaRegistro onIrALogin={() => irA('login')} />;
+      case 'olvido':
+        return <PantallaOlvidoClave onIrALogin={() => irA('login')} />;
+      case 'restablecer':
+        return <PantallaRestablecerClave token={ruta.token} onIrALogin={() => irA('login')} />;
+      case 'verificar':
+        return <PantallaVerificarEmail token={ruta.token} onIrALogin={() => irA('login')} />;
+      default:
+        return (
+          <PantallaLogin
+            onEntrar={(sesion) => {
+              setUsuario(sesion);
+              irA('login');
+            }}
+            onIrARegistro={() => irA('registro')}
+            onIrAOlvido={() => irA('olvido')}
+          />
+        );
+    }
   }
 
-  const iniciales = usuario.nombre
+  const iniciales = usuario.nombreCompleto
     .split(' ')
     .slice(0, 2)
     .map((p) => p[0])
@@ -229,7 +316,7 @@ export default function App() {
           <span className="avatar" aria-hidden="true">
             {iniciales}
           </span>
-          <span>{usuario.nombre}</span>
+          <span>{usuario.nombreCompleto}</span>
         </div>
 
         <button className="btn btn--sutil" onClick={cerrarSesion}>

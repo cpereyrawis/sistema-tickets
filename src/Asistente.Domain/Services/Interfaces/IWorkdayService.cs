@@ -9,24 +9,24 @@ namespace Asistente.Domain.Services.Interfaces;
 /// </summary>
 public interface IWorkdayService
 {
-    Task<EstadoJornadaDto> ObtenerEstadoAsync(long userId, CancellationToken ct);
+    Task<EstadoJornadaDto> ObtenerEstadoAsync(UsuarioActual usuario, CancellationToken ct);
 
     Task<Resultado<EstadoJornadaDto>> ComenzarDiaAsync(
-        long userId, ComenzarDiaRequest request, CancellationToken ct);
+        UsuarioActual usuario, ComenzarDiaRequest request, CancellationToken ct);
 
     Task<Resultado<EstadoJornadaDto>> FinTareaAsync(
-        long userId, FinTareaRequest request, CancellationToken ct);
+        UsuarioActual usuario, FinTareaRequest request, CancellationToken ct);
 
     Task<Resultado<EstadoJornadaDto>> RegistrarInterrupcionAsync(
-        long userId, InterrupcionRequest request, CancellationToken ct);
+        UsuarioActual usuario, InterrupcionRequest request, CancellationToken ct);
 
-    Task<Resultado<EstadoJornadaDto>> SalidaDescansoAsync(long userId, CancellationToken ct);
+    Task<Resultado<EstadoJornadaDto>> SalidaDescansoAsync(UsuarioActual usuario, CancellationToken ct);
 
-    Task<Resultado<EstadoJornadaDto>> RegresoDescansoAsync(long userId, CancellationToken ct);
+    Task<Resultado<EstadoJornadaDto>> RegresoDescansoAsync(UsuarioActual usuario, CancellationToken ct);
 
     Task<Resultado<EstadoJornadaDto>> FinDiaAsync(
-        long userId, FinDiaRequest request, CancellationToken ct);
+        UsuarioActual usuario, FinDiaRequest request, CancellationToken ct);
 
     Task<Resultado<EstadoJornadaDto>> ReabrirAsync(
-        long userId, ReabrirRequest request, CancellationToken ct);
+        UsuarioActual usuario, ReabrirRequest request, CancellationToken ct);
 }

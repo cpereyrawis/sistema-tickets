@@ -9,11 +9,12 @@ import {
   nombreArchivoExcel,
   totalTrabajado,
 } from '../domain/resumen';
-import type { Jornada, Usuario } from '../domain/tipos';
+import type { Jornada } from '../domain/tipos';
+import type { SesionApi } from '../services/api';
 
 interface Props {
   jornada: Jornada;
-  usuario: Usuario;
+  usuario: SesionApi;
   ahora: number;
   onVolver: () => void;
   onGenerarExcel: () => void;

@@ -2,9 +2,20 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "//": "Los argumentos tras -- van a la aplicación. --environment es necesario porque con --no-launch-profile no se hereda de launchSettings, y la API se niega a arrancar fuera de Development.",
       "name": "asistente-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/Asistente.Api", "--no-launch-profile", "--urls", "http://localhost:5290"],
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "src/Asistente.Api",
+        "--no-launch-profile",
+        "--",
+        "--environment",
+        "Development",
+        "--urls",
+        "http://localhost:5290"
+      ],
       "port": 5290
     },
     {

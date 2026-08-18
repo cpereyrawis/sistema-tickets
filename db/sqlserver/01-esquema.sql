@@ -1,0 +1,271 @@
+﻿IF OBJECT_ID(N'[dbo].[T_MIGRACION]') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[T_MIGRACION] (
+        [MigrationId] nvarchar(150) NOT NULL,
+        [ProductVersion] nvarchar(32) NOT NULL,
+        CONSTRAINT [PK_T_MIGRACION] PRIMARY KEY ([MigrationId])
+    );
+END;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_USUARIO] (
+        [ID] bigint NOT NULL IDENTITY,
+        [USUARIO] nvarchar(64) NOT NULL,
+        [EMAIL] nvarchar(160) NOT NULL,
+        [NOMBRE_COMPLETO] nvarchar(120) NOT NULL,
+        [CLAVE_HASH] nvarchar(256) NOT NULL,
+        [ACTIVO] bit NOT NULL,
+        [EMAIL_VERIFICADO] bit NOT NULL,
+        [FECHA_ALTA_UTC] datetime2 NOT NULL,
+        [EMAIL_VERIFICADO_EN_UTC] datetime2 NULL,
+        [ULTIMO_INGRESO_UTC] datetime2 NULL,
+        [ULTIMO_CAMBIO_CLAVE_UTC] datetime2 NULL,
+        [CANTIDAD_INTENTO_FALLIDO] int NOT NULL,
+        [BLOQUEADO_HASTA_UTC] datetime2 NULL,
+        CONSTRAINT [PK_T_USUARIO] PRIMARY KEY ([ID])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_JORNADA] (
+        [ID] bigint NOT NULL IDENTITY,
+        [USUARIO_ID] bigint NOT NULL,
+        [FECHA_LOCAL] datetime2 NOT NULL,
+        [INICIO_UTC] datetime2 NOT NULL,
+        [FIN_UTC] datetime2 NULL,
+        [ESTADO] int NOT NULL,
+        [TICKET_PRINCIPAL_ID] nvarchar(24) NULL,
+        [TICKET_PRINCIPAL_CLIENTE_ID] nvarchar(16) NULL,
+        [TICKET_PRINCIPAL_CLIENTE_NOMBRE] nvarchar(120) NULL,
+        [TICKET_PRINCIPAL_TITULO] nvarchar(200) NULL,
+        [VERSION] bigint NOT NULL,
+        CONSTRAINT [PK_T_JORNADA] PRIMARY KEY ([ID]),
+        CONSTRAINT [FK_T_JORNADA_T_USUARIO_USUARIO_ID] FOREIGN KEY ([USUARIO_ID]) REFERENCES [dbo].[T_USUARIO] ([ID]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_SESION_USUARIO] (
+        [ID] bigint NOT NULL IDENTITY,
+        [USUARIO_ID] bigint NOT NULL,
+        [INICIO_UTC] datetime2 NOT NULL,
+        [FIN_UTC] datetime2 NULL,
+        [DIRECCION_IP] nvarchar(45) NULL,
+        [AGENTE] nvarchar(200) NULL,
+        [MOTIVO_CIERRE] nvarchar(40) NULL,
+        CONSTRAINT [PK_T_SESION_USUARIO] PRIMARY KEY ([ID]),
+        CONSTRAINT [FK_T_SESION_USUARIO_T_USUARIO_USUARIO_ID] FOREIGN KEY ([USUARIO_ID]) REFERENCES [dbo].[T_USUARIO] ([ID]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_TOKEN_USUARIO] (
+        [ID] bigint NOT NULL IDENTITY,
+        [USUARIO_ID] bigint NOT NULL,
+        [TIPO] int NOT NULL,
+        [TOKEN_HASH] nvarchar(64) NOT NULL,
+        [CREADO_EN_UTC] datetime2 NOT NULL,
+        [EXPIRA_EN_UTC] datetime2 NOT NULL,
+        [USADO_EN_UTC] datetime2 NULL,
+        [ANULADO_EN_UTC] datetime2 NULL,
+        CONSTRAINT [PK_T_TOKEN_USUARIO] PRIMARY KEY ([ID]),
+        CONSTRAINT [FK_T_TOKEN_USUARIO_T_USUARIO_USUARIO_ID] FOREIGN KEY ([USUARIO_ID]) REFERENCES [dbo].[T_USUARIO] ([ID]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_AUDITORIA] (
+        [ID] bigint NOT NULL IDENTITY,
+        [JORNADA_ID] bigint NOT NULL,
+        [ACCION] nvarchar(60) NOT NULL,
+        [OCURRIDO_EN_UTC] datetime2 NOT NULL,
+        [USUARIO_ID] bigint NOT NULL,
+        [DETALLE] nvarchar(500) NOT NULL,
+        CONSTRAINT [PK_T_AUDITORIA] PRIMARY KEY ([ID]),
+        CONSTRAINT [FK_T_AUDITORIA_T_JORNADA_JORNADA_ID] FOREIGN KEY ([JORNADA_ID]) REFERENCES [dbo].[T_JORNADA] ([ID]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_EVENTO] (
+        [ID] bigint NOT NULL IDENTITY,
+        [JORNADA_ID] bigint NOT NULL,
+        [TIPO] int NOT NULL,
+        [TICKET_ID] nvarchar(24) NOT NULL,
+        [OCURRIDO_EN_UTC] datetime2 NOT NULL,
+        [CORRELACION_ID] uniqueidentifier NOT NULL,
+        [CREADO_EN_UTC] datetime2 NOT NULL,
+        CONSTRAINT [PK_T_EVENTO] PRIMARY KEY ([ID]),
+        CONSTRAINT [FK_T_EVENTO_T_JORNADA_JORNADA_ID] FOREIGN KEY ([JORNADA_ID]) REFERENCES [dbo].[T_JORNADA] ([ID]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_PLANILLA] (
+        [ID] bigint NOT NULL IDENTITY,
+        [JORNADA_ID] bigint NOT NULL,
+        [USUARIO_ID] bigint NOT NULL,
+        [GENERADA_EN_UTC] datetime2 NOT NULL,
+        [NOMBRE_ARCHIVO] nvarchar(120) NOT NULL,
+        [HASH_SHA256] nvarchar(64) NOT NULL,
+        [CANTIDAD_FILA] int NOT NULL,
+        [NUMERO_GENERACION] int NOT NULL,
+        [CONTENIDO] varbinary(max) NULL,
+        CONSTRAINT [PK_T_PLANILLA] PRIMARY KEY ([ID]),
+        CONSTRAINT [FK_T_PLANILLA_T_JORNADA_JORNADA_ID] FOREIGN KEY ([JORNADA_ID]) REFERENCES [dbo].[T_JORNADA] ([ID]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_SESION] (
+        [ID] bigint NOT NULL IDENTITY,
+        [JORNADA_ID] bigint NOT NULL,
+        [TICKET_ID] nvarchar(24) NOT NULL,
+        [CLIENTE_ID] nvarchar(16) NOT NULL,
+        [CLIENTE_NOMBRE] nvarchar(120) NOT NULL,
+        [TITULO] nvarchar(200) NOT NULL,
+        [TIPO] int NOT NULL,
+        [INICIO_UTC] datetime2 NOT NULL,
+        [FIN_UTC] datetime2 NULL,
+        [ACCION_ORIGEN] int NOT NULL,
+        [EDITADA] bit NOT NULL,
+        CONSTRAINT [PK_T_SESION] PRIMARY KEY ([ID]),
+        CONSTRAINT [CK_T_SESION_FIN] CHECK (FIN_UTC IS NULL OR FIN_UTC >= INICIO_UTC),
+        CONSTRAINT [FK_T_SESION_T_JORNADA_JORNADA_ID] FOREIGN KEY ([JORNADA_ID]) REFERENCES [dbo].[T_JORNADA] ([ID]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE INDEX [IX_T_AUDITORIA_JORNADA] ON [dbo].[T_AUDITORIA] ([JORNADA_ID]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE INDEX [IX_T_EVENTO_CORRELACION] ON [dbo].[T_EVENTO] ([CORRELACION_ID]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE INDEX [IX_T_EVENTO_JORNADA_OCURRIDO] ON [dbo].[T_EVENTO] ([JORNADA_ID], [OCURRIDO_EN_UTC]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE INDEX [IX_T_JORNADA_USUARIO_FECHA] ON [dbo].[T_JORNADA] ([USUARIO_ID], [FECHA_LOCAL]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_T_PLANILLA_JORNADA_GENERACION] ON [dbo].[T_PLANILLA] ([JORNADA_ID], [NUMERO_GENERACION]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE INDEX [IX_T_SESION_JORNADA_INICIO] ON [dbo].[T_SESION] ([JORNADA_ID], [INICIO_UTC]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE INDEX [IX_T_SESION_USUARIO_USUARIO_INICIO] ON [dbo].[T_SESION_USUARIO] ([USUARIO_ID], [INICIO_UTC]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE INDEX [IX_T_TOKEN_USUARIO_USUARIO_TIPO] ON [dbo].[T_TOKEN_USUARIO] ([USUARIO_ID], [TIPO]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_T_TOKEN_USUARIO_HASH_TIPO] ON [dbo].[T_TOKEN_USUARIO] ([TOKEN_HASH], [TIPO]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_T_USUARIO_EMAIL] ON [dbo].[T_USUARIO] ([EMAIL]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_T_USUARIO_USUARIO] ON [dbo].[T_USUARIO] ([USUARIO]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+)
+BEGIN
+    INSERT INTO [dbo].[T_MIGRACION] ([MigrationId], [ProductVersion])
+    VALUES (N'20260818030837_EsquemaInicial', N'10.0.11');
+END;
+
+COMMIT;
+GO
+

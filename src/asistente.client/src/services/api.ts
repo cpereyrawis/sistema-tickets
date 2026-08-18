@@ -31,11 +31,6 @@ export function fallaActiva(): boolean {
   return fallaSimulada;
 }
 
-/** Usuario que se envía al backend mientras no exista autenticación real. */
-let usuarioActual: string | null = null;
-export function fijarUsuario(id: string | null): void {
-  usuarioActual = id;
-}
 
 async function pedir<T>(ruta: string, init?: RequestInit): Promise<T> {
   if (fallaSimulada) {
@@ -43,14 +38,12 @@ async function pedir<T>(ruta: string, init?: RequestInit): Promise<T> {
   }
 
   const cabeceras: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (usuarioActual) {
-    // Identidad de desarrollo. Cuando exista la cookie corporativa esta cabecera
-    // desaparece y no cambia nada más de este archivo.
-    cabeceras['X-Usuario-Id'] = usuarioActual;
-  }
 
   const respuesta = await fetch(`${BASE}${ruta}`, {
     ...init,
+    // La sesión viaja en una cookie HttpOnly que el navegador adjunta solo al mismo
+    // origen; el cliente nunca la lee ni la manipula.
+    credentials: 'same-origin',
     headers: { ...cabeceras, ...(init?.headers ?? {}) },
   });
 
@@ -248,4 +241,70 @@ export const devApi = {
 
   /** Borra las jornadas del usuario para volver a empezar. Solo en desarrollo. */
   reiniciar: () => pedir<void>('/dev/jornada', { method: 'DELETE' }),
+};
+
+// ---------- Autenticación ----------
+
+export interface SesionApi {
+  id: number;
+  usuario: string;
+  nombreCompleto: string;
+  email: string;
+}
+
+export interface UsuarioHabilitadoApi {
+  usuario: string;
+  nombreCompleto: string;
+}
+
+export interface RegistroResultadoApi {
+  email: string;
+  requiereVerificacion: boolean;
+  /** Solo llega en desarrollo, cuando no hay servidor de correo configurado. */
+  enlaceVerificacion: string | null;
+}
+
+export const authApi = {
+  usuariosHabilitados: () => pedir<UsuarioHabilitadoApi[]>('/auth/usuarios-habilitados'),
+
+  dominioCorreo: () => pedir<{ dominio: string }>('/auth/dominio-correo'),
+
+  registro: (datos: {
+    usuario: string;
+    emailLocal: string;
+    clave: string;
+    claveConfirmacion: string;
+  }) => pedir<RegistroResultadoApi>('/auth/registro', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  }),
+
+  login: (usuario: string, clave: string) =>
+    pedir<SesionApi>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ usuario, clave }),
+    }),
+
+  /** Sesión vigente. Lanza 401 si la cookie ya no vale. */
+  sesion: () => pedir<SesionApi>('/auth/sesion'),
+
+  logout: () => pedir<void>('/auth/logout', { method: 'POST' }),
+
+  verificarEmail: (token: string) =>
+    pedir<{ verificado: boolean }>('/auth/verificar-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+
+  olvidoClave: (emailLocal: string) =>
+    pedir<{ mensaje: string }>('/auth/olvido-clave', {
+      method: 'POST',
+      body: JSON.stringify({ emailLocal }),
+    }),
+
+  restablecerClave: (token: string, clave: string, claveConfirmacion: string) =>
+    pedir<{ restablecida: boolean }>('/auth/restablecer-clave', {
+      method: 'POST',
+      body: JSON.stringify({ token, clave, claveConfirmacion }),
+    }),
 };

@@ -24,3 +24,6 @@ obj/
 
 # Scratch de pruebas
 /tmp/
+
+# Correos escritos por el proveedor de desarrollo: llevan enlaces de activación válidos
+correos-enviados/

@@ -32,9 +32,9 @@ public sealed class WorkdayService : IWorkdayService
         _logger = logger;
     }
 
-    public async Task<EstadoJornadaDto> ObtenerEstadoAsync(long userId, CancellationToken ct)
+    public async Task<EstadoJornadaDto> ObtenerEstadoAsync(UsuarioActual usuario, CancellationToken ct)
     {
-        var jornada = await _repositorio.ObtenerVigenteAsync(userId, ct);
+        var jornada = await _repositorio.ObtenerVigenteAsync(usuario.Id, ct);
         return Mapear(jornada);
     }
 
@@ -57,10 +57,10 @@ public sealed class WorkdayService : IWorkdayService
     }
 
     public async Task<Resultado<EstadoJornadaDto>> ComenzarDiaAsync(
-        long userId, ComenzarDiaRequest request, CancellationToken ct)
+        UsuarioActual usuario, ComenzarDiaRequest request, CancellationToken ct)
     {
         // Invariante §6.1: un usuario puede tener como máximo una jornada abierta.
-        var abierta = await _repositorio.ObtenerAbiertaAsync(userId, ct);
+        var abierta = await _repositorio.ObtenerAbiertaAsync(usuario.Id, ct);
         if (abierta is not null)
         {
             return Resultado<EstadoJornadaDto>.Fallo(
@@ -68,27 +68,27 @@ public sealed class WorkdayService : IWorkdayService
                 "Ya tenés una jornada abierta. Cerrala antes de comenzar otra.");
         }
 
-        var ticket = await ResolverTicketAsync(request.TicketId, ct);
+        var ticket = await ResolverTicketAsync(usuario.Usuario, request.TicketId, ct);
         if (!ticket.Ok) return Resultado<EstadoJornadaDto>.Fallo(ticket);
 
         var ahora = _reloj.AhoraUtc;
-        var jornada = Workday.Comenzar(userId, ticket.Valor!, ahora, _reloj.FechaLocal(ahora));
+        var jornada = Workday.Comenzar(usuario.Id, ticket.Valor!, ahora, _reloj.FechaLocal(ahora));
 
         await _repositorio.AgregarAsync(jornada, ct);
         _logger.LogInformation(
             "Jornada iniciada para el usuario {UserId} con el ticket {TicketId}",
-            userId, request.TicketId);
+            usuario.Id, request.TicketId);
 
         return await ConfirmarAsync(jornada, ct);
     }
 
     public async Task<Resultado<EstadoJornadaDto>> FinTareaAsync(
-        long userId, FinTareaRequest request, CancellationToken ct)
+        UsuarioActual usuario, FinTareaRequest request, CancellationToken ct)
     {
-        var jornada = await _repositorio.ObtenerAbiertaAsync(userId, ct);
+        var jornada = await _repositorio.ObtenerAbiertaAsync(usuario.Id, ct);
         if (jornada is null) return SinJornada();
 
-        var ticket = await ResolverTicketAsync(request.TicketId, ct);
+        var ticket = await ResolverTicketAsync(usuario.Usuario, request.TicketId, ct);
         if (!ticket.Ok) return Resultado<EstadoJornadaDto>.Fallo(ticket);
 
         var resultado = jornada.FinTarea(ticket.Valor!, _reloj.AhoraUtc);
@@ -98,12 +98,12 @@ public sealed class WorkdayService : IWorkdayService
     }
 
     public async Task<Resultado<EstadoJornadaDto>> RegistrarInterrupcionAsync(
-        long userId, InterrupcionRequest request, CancellationToken ct)
+        UsuarioActual usuario, InterrupcionRequest request, CancellationToken ct)
     {
-        var jornada = await _repositorio.ObtenerAbiertaAsync(userId, ct);
+        var jornada = await _repositorio.ObtenerAbiertaAsync(usuario.Id, ct);
         if (jornada is null) return SinJornada();
 
-        var ticket = await ResolverTicketAsync(request.TicketId, ct);
+        var ticket = await ResolverTicketAsync(usuario.Usuario, request.TicketId, ct);
         if (!ticket.Ok) return Resultado<EstadoJornadaDto>.Fallo(ticket);
 
         var resultado = jornada.RegistrarInterrupcion(
@@ -114,9 +114,9 @@ public sealed class WorkdayService : IWorkdayService
         return await ConfirmarAsync(jornada, ct);
     }
 
-    public async Task<Resultado<EstadoJornadaDto>> SalidaDescansoAsync(long userId, CancellationToken ct)
+    public async Task<Resultado<EstadoJornadaDto>> SalidaDescansoAsync(UsuarioActual usuario, CancellationToken ct)
     {
-        var jornada = await _repositorio.ObtenerAbiertaAsync(userId, ct);
+        var jornada = await _repositorio.ObtenerAbiertaAsync(usuario.Id, ct);
         if (jornada is null) return SinJornada();
 
         var resultado = jornada.SalidaDescanso(_reloj.AhoraUtc);
@@ -125,9 +125,9 @@ public sealed class WorkdayService : IWorkdayService
         return await ConfirmarAsync(jornada, ct);
     }
 
-    public async Task<Resultado<EstadoJornadaDto>> RegresoDescansoAsync(long userId, CancellationToken ct)
+    public async Task<Resultado<EstadoJornadaDto>> RegresoDescansoAsync(UsuarioActual usuario, CancellationToken ct)
     {
-        var jornada = await _repositorio.ObtenerAbiertaAsync(userId, ct);
+        var jornada = await _repositorio.ObtenerAbiertaAsync(usuario.Id, ct);
         if (jornada is null) return SinJornada();
 
         var resultado = jornada.RegresoDescanso(_reloj.AhoraUtc);
@@ -137,9 +137,9 @@ public sealed class WorkdayService : IWorkdayService
     }
 
     public async Task<Resultado<EstadoJornadaDto>> FinDiaAsync(
-        long userId, FinDiaRequest request, CancellationToken ct)
+        UsuarioActual usuario, FinDiaRequest request, CancellationToken ct)
     {
-        var jornada = await _repositorio.ObtenerAbiertaAsync(userId, ct);
+        var jornada = await _repositorio.ObtenerAbiertaAsync(usuario.Id, ct);
         if (jornada is null) return SinJornada();
 
         var resultado = jornada.FinDia(_reloj.AhoraUtc, request.ConfirmadoEnDescanso);
@@ -149,21 +149,21 @@ public sealed class WorkdayService : IWorkdayService
     }
 
     public async Task<Resultado<EstadoJornadaDto>> ReabrirAsync(
-        long userId, ReabrirRequest request, CancellationToken ct)
+        UsuarioActual usuario, ReabrirRequest request, CancellationToken ct)
     {
         // La reapertura opera sobre una jornada ya cerrada, así que se busca la vigente
         // y no la abierta (§6, "salvo corrección autorizada").
-        var jornada = await _repositorio.ObtenerVigenteAsync(userId, ct);
+        var jornada = await _repositorio.ObtenerVigenteAsync(usuario.Id, ct);
         if (jornada is null) return SinJornada();
 
         var resultado = jornada.Reabrir(
-            _reloj.AhoraUtc, userId, request.Motivo, request.ImputarIntervalo);
+            _reloj.AhoraUtc, usuario.Id, request.Motivo, request.ImputarIntervalo);
 
         if (!resultado.Ok) return Resultado<EstadoJornadaDto>.Fallo(resultado);
 
         _logger.LogWarning(
             "Jornada {JornadaId} reabierta por el usuario {UserId}. Imputa intervalo: {Imputa}",
-            jornada.Id, userId, request.ImputarIntervalo);
+            jornada.Id, usuario.Id, request.ImputarIntervalo);
 
         return await ConfirmarAsync(jornada, ct);
     }
@@ -179,7 +179,8 @@ public sealed class WorkdayService : IWorkdayService
     /// Toma una foto mínima del ticket desde la fuente corporativa. Se guarda con la
     /// sesión para que la jornada siga siendo legible aunque esa base no responda (NFR-014).
     /// </summary>
-    private async Task<Resultado<TicketRef>> ResolverTicketAsync(string ticketId, CancellationToken ct)
+    private async Task<Resultado<TicketRef>> ResolverTicketAsync(
+        string nombreUsuario, string ticketId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(ticketId))
         {
@@ -187,7 +188,7 @@ public sealed class WorkdayService : IWorkdayService
                 CodigosError.TicketNoEncontrado, "Falta indicar el ticket.");
         }
 
-        var dto = await _tickets.ObtenerPorIdAsync(ticketId, ct);
+        var dto = await _tickets.ObtenerPorIdAsync(nombreUsuario, ticketId, ct);
         if (dto is null)
         {
             return Resultado<TicketRef>.Fallo(
