@@ -10,13 +10,9 @@ import {
   nombreArchivoExcel,
 } from './domain/resumen';
 import type { Jornada, TicketRef, TipoAccion } from './domain/tipos';
+import { DialogoCambiarClave } from './componentes/DialogoCambiarClave';
 import { PantallaLogin } from './pantallas/PantallaLogin';
-import { PantallaRegistro } from './pantallas/PantallaRegistro';
-import {
-  PantallaOlvidoClave,
-  PantallaRestablecerClave,
-  PantallaVerificarEmail,
-} from './pantallas/PantallaClave';
+import { PantallaMantenimiento } from './pantallas/PantallaMantenimiento';
 import { PantallaPanel } from './pantallas/PantallaPanel';
 import { PantallaRevision } from './pantallas/PantallaRevision';
 import {
@@ -25,6 +21,7 @@ import {
   ErrorApi,
   fallaActiva,
   jornadaApi,
+  PERMISOS,
   simularFalla,
   type SesionApi,
 } from './services/api';
@@ -43,39 +40,22 @@ type Flujo =
 
 type Tema = 'claro' | 'oscuro' | 'sistema';
 
-type Ruta =
-  | { nombre: 'login' }
-  | { nombre: 'registro' }
-  | { nombre: 'olvido' }
-  | { nombre: 'restablecer'; token: string }
-  | { nombre: 'verificar'; token: string };
-
 /**
- * Enrutado mínimo por URL. Los enlaces que van por correo apuntan a rutas concretas, así
- * que la aplicación tiene que poder abrirse directamente en ellas.
+ * Qué se está mirando dentro de la aplicación ya autenticada.
+ *
+ * Alcanza con un estado y no hace falta enrutado por URL: al no existir registro ni
+ * enlaces por correo, ninguna pantalla necesita abrirse desde una dirección directa.
  */
-function rutaActual(): Ruta {
-  const ruta = window.location.pathname;
-  const token = new URLSearchParams(window.location.search).get('token') ?? '';
-
-  if (ruta.startsWith('/verificar-email')) return { nombre: 'verificar', token };
-  if (ruta.startsWith('/restablecer-clave')) return { nombre: 'restablecer', token };
-  if (ruta.startsWith('/registro')) return { nombre: 'registro' };
-  if (ruta.startsWith('/olvido-clave')) return { nombre: 'olvido' };
-  return { nombre: 'login' };
-}
-
-function navegar(ruta: string): void {
-  window.history.pushState({}, '', ruta);
-}
+type Vista = 'panel' | 'revision' | 'mantenimiento';
 
 export default function App() {
   const [usuario, setUsuario] = useState<SesionApi | null>(null);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
-  const [ruta, setRuta] = useState<Ruta>(() => rutaActual());
   const [jornada, setJornada] = useState<Jornada | null>(null);
   const [flujo, setFlujo] = useState<Flujo>({ tipo: 'ninguno' });
-  const [vista, setVista] = useState<'panel' | 'revision'>('panel');
+  const [vista, setVista] = useState<Vista>('panel');
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [cambiandoClave, setCambiandoClave] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nota, setNota] = useState<string | null>(null);
   const [exportaciones, setExportaciones] = useState(0);
@@ -253,13 +233,7 @@ export default function App() {
     setJornada(null);
     setVista('panel');
     setFlujo({ tipo: 'ninguno' });
-    irA('login');
-  }
-
-  function irA(nombre: 'login' | 'registro' | 'olvido') {
-    const rutas = { login: '/', registro: '/registro', olvido: '/olvido-clave' };
-    navegar(rutas[nombre]);
-    setRuta(nombre === 'login' ? { nombre: 'login' } : { nombre });
+    setMenuAbierto(false);
   }
 
   if (verificandoSesion) {
@@ -273,27 +247,7 @@ export default function App() {
   }
 
   if (!usuario) {
-    switch (ruta.nombre) {
-      case 'registro':
-        return <PantallaRegistro onIrALogin={() => irA('login')} />;
-      case 'olvido':
-        return <PantallaOlvidoClave onIrALogin={() => irA('login')} />;
-      case 'restablecer':
-        return <PantallaRestablecerClave token={ruta.token} onIrALogin={() => irA('login')} />;
-      case 'verificar':
-        return <PantallaVerificarEmail token={ruta.token} onIrALogin={() => irA('login')} />;
-      default:
-        return (
-          <PantallaLogin
-            onEntrar={(sesion) => {
-              setUsuario(sesion);
-              irA('login');
-            }}
-            onIrARegistro={() => irA('registro')}
-            onIrAOlvido={() => irA('olvido')}
-          />
-        );
-    }
+    return <PantallaLogin onEntrar={setUsuario} />;
   }
 
   const iniciales = usuario.nombreCompleto
@@ -305,6 +259,8 @@ export default function App() {
   return (
     <div className="app">
       <header className="barra">
+        <div className="barra__fondo" aria-hidden="true" />
+
         <div className="barra__marca">
           <span className="barra__nombre">Asistente de Registro</span>
           <span className="barra__jornada">
@@ -312,16 +268,62 @@ export default function App() {
           </span>
         </div>
 
-        <div className="barra__usuario">
-          <span className="avatar" aria-hidden="true">
-            {iniciales}
-          </span>
-          <span>{usuario.nombreCompleto}</span>
-        </div>
+        <div className="menu">
+          <button
+            type="button"
+            className="barra__usuario barra__usuario--boton"
+            onClick={() => setMenuAbierto((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuAbierto}
+            // Sin esto el nombre accesible sería solo el nombre de la persona, que no
+            // dice que el control abra nada.
+            aria-label={'Opciones de ' + usuario.nombreCompleto}
+          >
+            <span className="avatar" aria-hidden="true">
+              {iniciales}
+            </span>
+            <span>{usuario.nombreCompleto}</span>
+            <span aria-hidden="true">▾</span>
+          </button>
 
-        <button className="btn btn--sutil" onClick={cerrarSesion}>
-          Cerrar sesión
-        </button>
+          {menuAbierto && (
+            <>
+              {/* Capa que cierra el menú al hacer clic afuera, que es lo que se espera
+                  de un desplegable y evita dejarlo abierto tapando la pantalla. */}
+              <div className="menu__velo" onClick={() => setMenuAbierto(false)} />
+
+              <div className="menu__panel" role="menu">
+                <button
+                  className="menu__item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuAbierto(false);
+                    setCambiandoClave(true);
+                  }}
+                >
+                  Cambiar contraseña
+                </button>
+
+                {usuario.permisos.includes(PERMISOS.listar) && (
+                  <button
+                    className="menu__item"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuAbierto(false);
+                      setVista('mantenimiento');
+                    }}
+                  >
+                    Mantenimiento de Usuarios
+                  </button>
+                )}
+
+                <button className="menu__item menu__item--sep" role="menuitem" onClick={cerrarSesion}>
+                  Cerrar sesión
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </header>
 
       {(error || nota) && (
@@ -336,7 +338,9 @@ export default function App() {
         </div>
       )}
 
-      {cargando && !jornada ? (
+      {vista === 'mantenimiento' ? (
+        <PantallaMantenimiento sesion={usuario} onVolver={() => setVista('panel')} />
+      ) : cargando && !jornada ? (
         <main className="contenido contenido--unica">
           <div className="bloque">
             <span className="bloque__titulo">Cargando la jornada…</span>
@@ -542,6 +546,17 @@ export default function App() {
             </div>
           ))}
         </Modal>
+      )}
+
+      {cambiandoClave && (
+        <DialogoCambiarClave
+          onCerrar={() => setCambiandoClave(false)}
+          onListo={(mensaje) => {
+            setCambiandoClave(false);
+            setError(null);
+            setNota(mensaje);
+          }}
+        />
       )}
     </div>
   );

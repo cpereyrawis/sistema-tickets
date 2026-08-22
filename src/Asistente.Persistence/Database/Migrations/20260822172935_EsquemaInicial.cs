@@ -15,6 +15,21 @@ namespace Asistente.Persistence.Database.Migrations
                 name: "dbo");
 
             migrationBuilder.CreateTable(
+                name: "T_PERMISO",
+                schema: "dbo",
+                columns: table => new
+                {
+                    ID = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    CODIGO = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: false),
+                    DESCRIPCION = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_T_PERMISO", x => x.ID);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "T_USUARIO",
                 schema: "dbo",
                 columns: table => new
@@ -22,13 +37,10 @@ namespace Asistente.Persistence.Database.Migrations
                     ID = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     USUARIO = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    EMAIL = table.Column<string>(type: "nvarchar(160)", maxLength: 160, nullable: false),
                     NOMBRE_COMPLETO = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: false),
                     CLAVE_HASH = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     ACTIVO = table.Column<bool>(type: "bit", nullable: false),
-                    EMAIL_VERIFICADO = table.Column<bool>(type: "bit", nullable: false),
                     FECHA_ALTA_UTC = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EMAIL_VERIFICADO_EN_UTC = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ULTIMO_INGRESO_UTC = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ULTIMO_CAMBIO_CLAVE_UTC = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CANTIDAD_INTENTO_FALLIDO = table.Column<int>(type: "int", nullable: false),
@@ -96,25 +108,26 @@ namespace Asistente.Persistence.Database.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "T_TOKEN_USUARIO",
+                name: "T_USUARIO_PERMISO",
                 schema: "dbo",
                 columns: table => new
                 {
-                    ID = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
                     USUARIO_ID = table.Column<long>(type: "bigint", nullable: false),
-                    TIPO = table.Column<int>(type: "int", nullable: false),
-                    TOKEN_HASH = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    CREADO_EN_UTC = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EXPIRA_EN_UTC = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    USADO_EN_UTC = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ANULADO_EN_UTC = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    PERMISO_ID = table.Column<long>(type: "bigint", nullable: false),
+                    OTORGADO_EN_UTC = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_T_TOKEN_USUARIO", x => x.ID);
+                    table.PrimaryKey("PK_T_USUARIO_PERMISO", x => new { x.USUARIO_ID, x.PERMISO_ID });
                     table.ForeignKey(
-                        name: "FK_T_TOKEN_USUARIO_T_USUARIO_USUARIO_ID",
+                        name: "FK_T_USUARIO_PERMISO_T_PERMISO_PERMISO_ID",
+                        column: x => x.PERMISO_ID,
+                        principalSchema: "dbo",
+                        principalTable: "T_PERMISO",
+                        principalColumn: "ID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_T_USUARIO_PERMISO_T_USUARIO_USUARIO_ID",
                         column: x => x.USUARIO_ID,
                         principalSchema: "dbo",
                         principalTable: "T_USUARIO",
@@ -257,6 +270,13 @@ namespace Asistente.Persistence.Database.Migrations
                 columns: new[] { "USUARIO_ID", "FECHA_LOCAL" });
 
             migrationBuilder.CreateIndex(
+                name: "UX_T_PERMISO_CODIGO",
+                schema: "dbo",
+                table: "T_PERMISO",
+                column: "CODIGO",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "UX_T_PLANILLA_JORNADA_GENERACION",
                 schema: "dbo",
                 table: "T_PLANILLA",
@@ -276,31 +296,17 @@ namespace Asistente.Persistence.Database.Migrations
                 columns: new[] { "USUARIO_ID", "INICIO_UTC" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_T_TOKEN_USUARIO_USUARIO_TIPO",
-                schema: "dbo",
-                table: "T_TOKEN_USUARIO",
-                columns: new[] { "USUARIO_ID", "TIPO" });
-
-            migrationBuilder.CreateIndex(
-                name: "UX_T_TOKEN_USUARIO_HASH_TIPO",
-                schema: "dbo",
-                table: "T_TOKEN_USUARIO",
-                columns: new[] { "TOKEN_HASH", "TIPO" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "UX_T_USUARIO_EMAIL",
-                schema: "dbo",
-                table: "T_USUARIO",
-                column: "EMAIL",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "UX_T_USUARIO_USUARIO",
                 schema: "dbo",
                 table: "T_USUARIO",
                 column: "USUARIO",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_T_USUARIO_PERMISO_PERMISO",
+                schema: "dbo",
+                table: "T_USUARIO_PERMISO",
+                column: "PERMISO_ID");
         }
 
         /// <inheritdoc />
@@ -327,11 +333,15 @@ namespace Asistente.Persistence.Database.Migrations
                 schema: "dbo");
 
             migrationBuilder.DropTable(
-                name: "T_TOKEN_USUARIO",
+                name: "T_USUARIO_PERMISO",
                 schema: "dbo");
 
             migrationBuilder.DropTable(
                 name: "T_JORNADA",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
+                name: "T_PERMISO",
                 schema: "dbo");
 
             migrationBuilder.DropTable(

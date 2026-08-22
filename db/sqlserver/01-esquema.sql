@@ -11,19 +11,29 @@ GO
 BEGIN TRANSACTION;
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
+)
+BEGIN
+    CREATE TABLE [dbo].[T_PERMISO] (
+        [ID] bigint NOT NULL IDENTITY,
+        [CODIGO] nvarchar(60) NOT NULL,
+        [DESCRIPCION] nvarchar(200) NOT NULL,
+        CONSTRAINT [PK_T_PERMISO] PRIMARY KEY ([ID])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE TABLE [dbo].[T_USUARIO] (
         [ID] bigint NOT NULL IDENTITY,
         [USUARIO] nvarchar(64) NOT NULL,
-        [EMAIL] nvarchar(160) NOT NULL,
         [NOMBRE_COMPLETO] nvarchar(120) NOT NULL,
         [CLAVE_HASH] nvarchar(256) NOT NULL,
         [ACTIVO] bit NOT NULL,
-        [EMAIL_VERIFICADO] bit NOT NULL,
         [FECHA_ALTA_UTC] datetime2 NOT NULL,
-        [EMAIL_VERIFICADO_EN_UTC] datetime2 NULL,
         [ULTIMO_INGRESO_UTC] datetime2 NULL,
         [ULTIMO_CAMBIO_CLAVE_UTC] datetime2 NULL,
         [CANTIDAD_INTENTO_FALLIDO] int NOT NULL,
@@ -34,7 +44,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE TABLE [dbo].[T_JORNADA] (
@@ -56,7 +66,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE TABLE [dbo].[T_SESION_USUARIO] (
@@ -74,26 +84,22 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
-    CREATE TABLE [dbo].[T_TOKEN_USUARIO] (
-        [ID] bigint NOT NULL IDENTITY,
+    CREATE TABLE [dbo].[T_USUARIO_PERMISO] (
         [USUARIO_ID] bigint NOT NULL,
-        [TIPO] int NOT NULL,
-        [TOKEN_HASH] nvarchar(64) NOT NULL,
-        [CREADO_EN_UTC] datetime2 NOT NULL,
-        [EXPIRA_EN_UTC] datetime2 NOT NULL,
-        [USADO_EN_UTC] datetime2 NULL,
-        [ANULADO_EN_UTC] datetime2 NULL,
-        CONSTRAINT [PK_T_TOKEN_USUARIO] PRIMARY KEY ([ID]),
-        CONSTRAINT [FK_T_TOKEN_USUARIO_T_USUARIO_USUARIO_ID] FOREIGN KEY ([USUARIO_ID]) REFERENCES [dbo].[T_USUARIO] ([ID]) ON DELETE CASCADE
+        [PERMISO_ID] bigint NOT NULL,
+        [OTORGADO_EN_UTC] datetime2 NOT NULL,
+        CONSTRAINT [PK_T_USUARIO_PERMISO] PRIMARY KEY ([USUARIO_ID], [PERMISO_ID]),
+        CONSTRAINT [FK_T_USUARIO_PERMISO_T_PERMISO_PERMISO_ID] FOREIGN KEY ([PERMISO_ID]) REFERENCES [dbo].[T_PERMISO] ([ID]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_T_USUARIO_PERMISO_T_USUARIO_USUARIO_ID] FOREIGN KEY ([USUARIO_ID]) REFERENCES [dbo].[T_USUARIO] ([ID]) ON DELETE CASCADE
     );
 END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE TABLE [dbo].[T_AUDITORIA] (
@@ -110,7 +116,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE TABLE [dbo].[T_EVENTO] (
@@ -128,7 +134,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE TABLE [dbo].[T_PLANILLA] (
@@ -148,7 +154,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE TABLE [dbo].[T_SESION] (
@@ -171,7 +177,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE INDEX [IX_T_AUDITORIA_JORNADA] ON [dbo].[T_AUDITORIA] ([JORNADA_ID]);
@@ -179,7 +185,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE INDEX [IX_T_EVENTO_CORRELACION] ON [dbo].[T_EVENTO] ([CORRELACION_ID]);
@@ -187,7 +193,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE INDEX [IX_T_EVENTO_JORNADA_OCURRIDO] ON [dbo].[T_EVENTO] ([JORNADA_ID], [OCURRIDO_EN_UTC]);
@@ -195,7 +201,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE INDEX [IX_T_JORNADA_USUARIO_FECHA] ON [dbo].[T_JORNADA] ([USUARIO_ID], [FECHA_LOCAL]);
@@ -203,7 +209,15 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_T_PERMISO_CODIGO] ON [dbo].[T_PERMISO] ([CODIGO]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE UNIQUE INDEX [UX_T_PLANILLA_JORNADA_GENERACION] ON [dbo].[T_PLANILLA] ([JORNADA_ID], [NUMERO_GENERACION]);
@@ -211,7 +225,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE INDEX [IX_T_SESION_JORNADA_INICIO] ON [dbo].[T_SESION] ([JORNADA_ID], [INICIO_UTC]);
@@ -219,7 +233,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE INDEX [IX_T_SESION_USUARIO_USUARIO_INICIO] ON [dbo].[T_SESION_USUARIO] ([USUARIO_ID], [INICIO_UTC]);
@@ -227,31 +241,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
-)
-BEGIN
-    CREATE INDEX [IX_T_TOKEN_USUARIO_USUARIO_TIPO] ON [dbo].[T_TOKEN_USUARIO] ([USUARIO_ID], [TIPO]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
-)
-BEGIN
-    CREATE UNIQUE INDEX [UX_T_TOKEN_USUARIO_HASH_TIPO] ON [dbo].[T_TOKEN_USUARIO] ([TOKEN_HASH], [TIPO]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
-)
-BEGIN
-    CREATE UNIQUE INDEX [UX_T_USUARIO_EMAIL] ON [dbo].[T_USUARIO] ([EMAIL]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     CREATE UNIQUE INDEX [UX_T_USUARIO_USUARIO] ON [dbo].[T_USUARIO] ([USUARIO]);
@@ -259,11 +249,19 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [dbo].[T_MIGRACION]
-    WHERE [MigrationId] = N'20260818030837_EsquemaInicial'
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
+)
+BEGIN
+    CREATE INDEX [IX_T_USUARIO_PERMISO_PERMISO] ON [dbo].[T_USUARIO_PERMISO] ([PERMISO_ID]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [dbo].[T_MIGRACION]
+    WHERE [MigrationId] = N'20260822172935_EsquemaInicial'
 )
 BEGIN
     INSERT INTO [dbo].[T_MIGRACION] ([MigrationId], [ProductVersion])
-    VALUES (N'20260818030837_EsquemaInicial', N'10.0.11');
+    VALUES (N'20260822172935_EsquemaInicial', N'10.0.11');
 END;
 
 COMMIT;

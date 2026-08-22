@@ -249,36 +249,35 @@ export interface SesionApi {
   id: number;
   usuario: string;
   nombreCompleto: string;
-  email: string;
+  /**
+   * Códigos de permiso vigentes. La interfaz decide con ellos qué ofrecer, pero no son
+   * una medida de seguridad: el servidor vuelve a verificarlos en cada operación, porque
+   * esconder un botón no impide llamar al endpoint.
+   */
+  permisos: string[];
 }
 
-export interface UsuarioHabilitadoApi {
+/** Códigos que la interfaz consulta. Deben coincidir con las filas de T_PERMISO. */
+export const PERMISOS = {
+  listar: 'USUARIO_LISTAR',
+  resetClave: 'USUARIO_RESET_CLAVE',
+  desbloquear: 'USUARIO_DESBLOQUEAR',
+} as const;
+
+export interface UsuarioMantenimientoApi {
+  id: number;
   usuario: string;
   nombreCompleto: string;
-}
-
-export interface RegistroResultadoApi {
-  email: string;
-  requiereVerificacion: boolean;
-  /** Solo llega en desarrollo, cuando no hay servidor de correo configurado. */
-  enlaceVerificacion: string | null;
+  activo: boolean;
+  bloqueado: boolean;
+  bloqueadoHastaUtc: string | null;
+  intentosFallidos: number;
+  ultimoIngresoUtc: string | null;
+  ultimoCambioClaveUtc: string | null;
+  permisos: string[];
 }
 
 export const authApi = {
-  usuariosHabilitados: () => pedir<UsuarioHabilitadoApi[]>('/auth/usuarios-habilitados'),
-
-  dominioCorreo: () => pedir<{ dominio: string }>('/auth/dominio-correo'),
-
-  registro: (datos: {
-    usuario: string;
-    emailLocal: string;
-    clave: string;
-    claveConfirmacion: string;
-  }) => pedir<RegistroResultadoApi>('/auth/registro', {
-    method: 'POST',
-    body: JSON.stringify(datos),
-  }),
-
   login: (usuario: string, clave: string) =>
     pedir<SesionApi>('/auth/login', {
       method: 'POST',
@@ -290,21 +289,24 @@ export const authApi = {
 
   logout: () => pedir<void>('/auth/logout', { method: 'POST' }),
 
-  verificarEmail: (token: string) =>
-    pedir<{ verificado: boolean }>('/auth/verificar-email', {
+  cambiarClave: (claveActual: string, claveNueva: string, claveConfirmacion: string) =>
+    pedir<{ cambiada: boolean }>('/auth/cambiar-clave', {
       method: 'POST',
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ claveActual, claveNueva, claveConfirmacion }),
+    }),
+};
+
+export const mantenimientoApi = {
+  usuarios: () => pedir<UsuarioMantenimientoApi[]>('/mantenimiento/usuarios'),
+
+  resetClave: (id: number, claveNueva: string, claveConfirmacion: string) =>
+    pedir<{ asignada: boolean }>(`/mantenimiento/usuarios/${id}/clave`, {
+      method: 'POST',
+      body: JSON.stringify({ claveNueva, claveConfirmacion }),
     }),
 
-  olvidoClave: (emailLocal: string) =>
-    pedir<{ mensaje: string }>('/auth/olvido-clave', {
+  desbloquear: (id: number) =>
+    pedir<{ desbloqueado: boolean }>(`/mantenimiento/usuarios/${id}/desbloquear`, {
       method: 'POST',
-      body: JSON.stringify({ emailLocal }),
-    }),
-
-  restablecerClave: (token: string, clave: string, claveConfirmacion: string) =>
-    pedir<{ restablecida: boolean }>('/auth/restablecer-clave', {
-      method: 'POST',
-      body: JSON.stringify({ token, clave, claveConfirmacion }),
     }),
 };

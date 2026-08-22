@@ -7,6 +7,22 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- 1591: no exigimos comentario XML en cada miembro público. -->
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <SpaRoot>..\asistente.client\</SpaRoot>
+  </PropertyGroup>
+
+  <!--
+    Sin ventana de consola al ejecutar desde Visual Studio.
+
+    Una aplicación marcada como WinExe no recibe consola, que es exactamente lo que abre
+    Visual Studio al arrancar el proyecto. Los registros no se pierden: Program.cs agrega
+    el proveedor de depuración y aparecen en la ventana de Salida.
+
+    La condición importa. Desde una terminal sí se quiere ver la salida, y como `dotnet
+    run` recompila antes de ejecutar, cada entorno termina obteniendo la variante que le
+    sirve sin que haya que tocar nada.
+  -->
+  <PropertyGroup Condition=" '$(BuildingInsideVisualStudio)' == 'true' ">
+    <OutputType>WinExe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,5 +37,24 @@
   <ItemGroup>
     <ProjectReference Include="..\Asistente.Persistence\Asistente.Persistence.csproj" />
   </ItemGroup>
+
+  <!--
+    Instala las dependencias del frontend si faltan.
+
+    Sin esto, quien clona el repositorio y pulsa el botón verde ve fallar el arranque con
+    un error de npm que no explica nada. Solo corre en Debug y solo si node_modules no
+    está, así que en el día a día no cuesta nada.
+  -->
+  <Target Name="AsegurarDependenciasDelCliente"
+          BeforeTargets="Build"
+          Condition=" '$(Configuration)' == 'Debug' And !Exists('$(SpaRoot)node_modules') ">
+    <Exec Command="node --version" ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="CodigoErrorNode" />
+    </Exec>
+    <Error Condition="'$(CodigoErrorNode)' != '0'"
+           Text="Hace falta Node.js para levantar el frontend. Instalalo desde https://nodejs.org y volvé a intentar." />
+    <Message Importance="high" Text="Instalando dependencias del frontend con npm. Puede tardar unos minutos…" />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
+  </Target>
 
 </Project>

@@ -41,20 +41,8 @@ public static class CodigosError
     /// <summary>Usuario o contraseña incorrectos. Deliberadamente ambiguo.</summary>
     public const string CredencialesInvalidas = "CREDENCIALES_INVALIDAS";
 
-    /// <summary>El nombre de usuario no está en la lista habilitada.</summary>
-    public const string UsuarioNoHabilitado = "USUARIO_NO_HABILITADO";
-
-    /// <summary>Ese usuario ya tiene una cuenta.</summary>
-    public const string UsuarioYaRegistrado = "USUARIO_YA_REGISTRADO";
-
-    /// <summary>La parte local del correo no es válida.</summary>
-    public const string EmailInvalido = "EMAIL_INVALIDO";
-
     /// <summary>La contraseña no cumple la política.</summary>
     public const string ClaveInvalida = "CLAVE_INVALIDA";
-
-    /// <summary>La cuenta existe pero todavía no se verificó el correo.</summary>
-    public const string EmailNoVerificado = "EMAIL_NO_VERIFICADO";
 
     /// <summary>Bloqueo temporal por intentos fallidos.</summary>
     public const string CuentaBloqueada = "CUENTA_BLOQUEADA";
@@ -62,9 +50,14 @@ public static class CodigosError
     /// <summary>La cuenta está deshabilitada.</summary>
     public const string CuentaInactiva = "CUENTA_INACTIVA";
 
-    /// <summary>Token de correo inexistente, vencido o ya usado.</summary>
-    public const string TokenInvalido = "TOKEN_INVALIDO";
-
     /// <summary>Falta autenticarse.</summary>
     public const string NoAutenticado = "NO_AUTENTICADO";
+
+    // ---------- Mantenimiento de usuarios ----------
+
+    /// <summary>La cuenta sobre la que se quiso operar no existe.</summary>
+    public const string UsuarioNoEncontrado = "USUARIO_NO_ENCONTRADO";
+
+    /// <summary>La sesión es válida pero no tiene el permiso que la operación exige.</summary>
+    public const string PermisoDenegado = "PERMISO_DENEGADO";
 }

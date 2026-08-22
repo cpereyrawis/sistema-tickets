@@ -6,13 +6,15 @@ import { useMemo, useState } from 'react';
  * Es un espejo de la política del backend, para dar retroalimentación inmediata en vez de
  * hacer que la persona descubra los requisitos rebotando contra el servidor. El backend
  * la vuelve a aplicar entera: esto es ayuda, no control.
+ *
+ * Quedó en una sola regla al adoptarse una contraseña por defecto corta y numérica para
+ * toda la nómina. Exigir doce caracteres con símbolo mientras la semilla usa cinco dígitos
+ * habría sido una regla que el propio sistema incumple.
  */
+export const LARGO_MINIMO = 4;
+
 export const REGLAS: { texto: string; cumple: (c: string) => boolean }[] = [
-  { texto: 'Al menos 12 caracteres', cumple: (c) => c.length >= 12 },
-  { texto: 'Una minúscula', cumple: (c) => /[a-zà-ÿ]/.test(c) },
-  { texto: 'Una mayúscula', cumple: (c) => /[A-ZÀ-Ý]/.test(c) },
-  { texto: 'Un número', cumple: (c) => /[0-9]/.test(c) },
-  { texto: 'Un símbolo', cumple: (c) => /[^a-zA-Zà-ÿÀ-Ý0-9]/.test(c) },
+  { texto: `Al menos ${LARGO_MINIMO} caracteres`, cumple: (c) => c.length >= LARGO_MINIMO },
 ];
 
 export function claveCumpleReglas(clave: string): boolean {
@@ -24,7 +26,7 @@ interface Props {
   etiqueta: string;
   valor: string;
   onCambiar: (valor: string) => void;
-  /** Muestra la lista de requisitos debajo. Solo en registro y restablecimiento. */
+  /** Muestra la lista de requisitos debajo. Solo al elegir una contraseña nueva. */
   mostrarReglas?: boolean;
   autoComplete?: string;
 }

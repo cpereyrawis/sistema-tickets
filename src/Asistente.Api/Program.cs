@@ -1,17 +1,36 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Asistente.Api.Desarrollo;
 using Asistente.Api.Security;
 using Asistente.Domain.Services;
 using Asistente.Persistence;
-using Asistente.Persistence.Configuration;
 using Asistente.Persistence.Database;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Sin ventana de consola, la salida estándar no la ve nadie. Este proveedor manda los
+// mismos registros a la ventana de Salida de Visual Studio, que es donde se los busca
+// cuando se está depurando.
+builder.Logging.AddDebug();
+
+// ---------- Frontend de desarrollo ----------
+//
+// La API levanta el servidor de Vite como proceso hijo y sin ventana propia. En
+// producción esto no existe: ahí el frontend va compilado y lo sirve la propia
+// aplicación, sin ningún Node de por medio.
+if (builder.Environment.IsDevelopment())
+{
+    var frontend = builder.Configuration
+        .GetSection(FrontendSettings.SectionName)
+        .Get<FrontendSettings>() ?? new FrontendSettings();
+
+    builder.Services.AddSingleton(frontend);
+    builder.Services.AddHostedService<ServidorFrontend>();
+}
 
 builder.Services
     .AddControllers()
@@ -109,17 +128,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(o => o.SwaggerEndpoint("/swagger/v1/swagger.json", "Asistente v1"));
 
-    // La base de desarrollo SQLite se crea sola, porque es descartable y vive en un
-    // archivo local. Contra SQL Server NUNCA se toca el esquema desde la aplicación: ahí
-    // los objetos se crean ejecutando los scripts de db/ a mano.
-    using var scope = app.Services.CreateScope();
-    var ajustes = scope.ServiceProvider.GetRequiredService<IOptions<DatabaseSettings>>().Value;
-
-    if (string.Equals(ajustes.Asistente.Provider, "Sqlite", StringComparison.OrdinalIgnoreCase))
-    {
-        var db = scope.ServiceProvider.GetRequiredService<AsistenteDbContext>();
-        await db.Database.EnsureCreatedAsync();
-    }
+    // Va temprano: quien abre la dirección de la API en el navegador tiene que terminar
+    // en la aplicación, no en un 404.
+    app.UsarRedireccionAlFrontend(app.Services.GetRequiredService<FrontendSettings>());
 }
 
 app.UseHttpsRedirection();

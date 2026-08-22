@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Asistente.Persistence.Database.Migrations
 {
     [DbContext(typeof(AsistenteDbContext))]
-    [Migration("20260818030837_EsquemaInicial")]
+    [Migration("20260822172935_EsquemaInicial")]
     partial class EsquemaInicial
     {
         /// <inheritdoc />
@@ -49,20 +49,6 @@ namespace Asistente.Persistence.Database.Migrations
                         .HasColumnType("nvarchar(256)")
                         .HasColumnName("CLAVE_HASH");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("nvarchar(160)")
-                        .HasColumnName("EMAIL");
-
-                    b.Property<bool>("EmailVerificado")
-                        .HasColumnType("bit")
-                        .HasColumnName("EMAIL_VERIFICADO");
-
-                    b.Property<DateTime?>("EmailVerificadoEnUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("EMAIL_VERIFICADO_EN_UTC");
-
                     b.Property<DateTime>("FechaAltaUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("FECHA_ALTA_UTC");
@@ -92,10 +78,6 @@ namespace Asistente.Persistence.Database.Migrations
                         .HasColumnName("USUARIO");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasDatabaseName("UX_T_USUARIO_EMAIL");
 
                     b.HasIndex("Usuario")
                         .IsUnique()
@@ -143,6 +125,36 @@ namespace Asistente.Persistence.Database.Migrations
                         .HasDatabaseName("IX_T_AUDITORIA_JORNADA");
 
                     b.ToTable("T_AUDITORIA", "dbo");
+                });
+
+            modelBuilder.Entity("Asistente.Domain.Entities.Permiso", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("ID");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)")
+                        .HasColumnName("CODIGO");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("DESCRIPCION");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique()
+                        .HasDatabaseName("UX_T_PERMISO_CODIGO");
+
+                    b.ToTable("T_PERMISO", "dbo");
                 });
 
             modelBuilder.Entity("Asistente.Domain.Entities.Planilla", b =>
@@ -289,55 +301,26 @@ namespace Asistente.Persistence.Database.Migrations
                     b.ToTable("T_EVENTO", "dbo");
                 });
 
-            modelBuilder.Entity("Asistente.Domain.Entities.TokenUsuario", b =>
+            modelBuilder.Entity("Asistente.Domain.Entities.UsuarioPermiso", b =>
                 {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("ID");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("AnuladoEnUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("ANULADO_EN_UTC");
-
-                    b.Property<DateTime>("CreadoEnUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("CREADO_EN_UTC");
-
-                    b.Property<DateTime>("ExpiraEnUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("EXPIRA_EN_UTC");
-
-                    b.Property<int>("Tipo")
-                        .HasColumnType("int")
-                        .HasColumnName("TIPO");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
-                        .HasColumnName("TOKEN_HASH");
-
-                    b.Property<DateTime?>("UsadoEnUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("USADO_EN_UTC");
-
                     b.Property<long>("UserId")
                         .HasColumnType("bigint")
                         .HasColumnName("USUARIO_ID");
 
-                    b.HasKey("Id");
+                    b.Property<long>("PermisoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("PERMISO_ID");
 
-                    b.HasIndex("TokenHash", "Tipo")
-                        .IsUnique()
-                        .HasDatabaseName("UX_T_TOKEN_USUARIO_HASH_TIPO");
+                    b.Property<DateTime>("OtorgadoEnUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("OTORGADO_EN_UTC");
 
-                    b.HasIndex("UserId", "Tipo")
-                        .HasDatabaseName("IX_T_TOKEN_USUARIO_USUARIO_TIPO");
+                    b.HasKey("UserId", "PermisoId");
 
-                    b.ToTable("T_TOKEN_USUARIO", "dbo");
+                    b.HasIndex("PermisoId")
+                        .HasDatabaseName("IX_T_USUARIO_PERMISO_PERMISO");
+
+                    b.ToTable("T_USUARIO_PERMISO", "dbo");
                 });
 
             modelBuilder.Entity("Asistente.Domain.Entities.WorkSession", b =>
@@ -462,8 +445,14 @@ namespace Asistente.Persistence.Database.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Asistente.Domain.Entities.TokenUsuario", b =>
+            modelBuilder.Entity("Asistente.Domain.Entities.UsuarioPermiso", b =>
                 {
+                    b.HasOne("Asistente.Domain.Entities.Permiso", null)
+                        .WithMany()
+                        .HasForeignKey("PermisoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Asistente.Domain.Entities.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")

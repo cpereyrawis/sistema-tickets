@@ -36,7 +36,8 @@ public sealed class AsistenteDbContext : DbContext
     public DbSet<SesionUsuario> SesionesUsuario => Set<SesionUsuario>();
     public DbSet<Workday> Jornadas => Set<Workday>();
     public DbSet<Planilla> Planillas => Set<Planilla>();
-    public DbSet<TokenUsuario> Tokens => Set<TokenUsuario>();
+    public DbSet<Permiso> Permisos => Set<Permiso>();
+    public DbSet<UsuarioPermiso> UsuarioPermisos => Set<UsuarioPermiso>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
@@ -56,7 +57,7 @@ public sealed class AsistenteDbContext : DbContext
 
         ConfigurarUsuario(modelBuilder);
         ConfigurarSesionUsuario(modelBuilder);
-        ConfigurarToken(modelBuilder);
+        ConfigurarPermisos(modelBuilder);
         ConfigurarJornada(modelBuilder);
         ConfigurarSesion(modelBuilder);
         ConfigurarEvento(modelBuilder);
@@ -73,13 +74,10 @@ public sealed class AsistenteDbContext : DbContext
 
             e.Property(x => x.Id).HasColumnName("ID").ValueGeneratedOnAdd();
             e.Property(x => x.Usuario).HasColumnName("USUARIO").HasMaxLength(64).IsRequired();
-            e.Property(x => x.Email).HasColumnName("EMAIL").HasMaxLength(160).IsRequired();
             e.Property(x => x.NombreCompleto).HasColumnName("NOMBRE_COMPLETO").HasMaxLength(120).IsRequired();
             e.Property(x => x.ClaveHash).HasColumnName("CLAVE_HASH").HasMaxLength(256).IsRequired();
             e.Property(x => x.Activo).HasColumnName("ACTIVO").IsRequired();
-            e.Property(x => x.EmailVerificado).HasColumnName("EMAIL_VERIFICADO").IsRequired();
             e.Property(x => x.FechaAltaUtc).HasColumnName("FECHA_ALTA_UTC").IsRequired();
-            e.Property(x => x.EmailVerificadoEnUtc).HasColumnName("EMAIL_VERIFICADO_EN_UTC");
             e.Property(x => x.UltimoIngresoUtc).HasColumnName("ULTIMO_INGRESO_UTC");
             e.Property(x => x.UltimoCambioClaveUtc).HasColumnName("ULTIMO_CAMBIO_CLAVE_UTC");
 
@@ -92,7 +90,6 @@ public sealed class AsistenteDbContext : DbContext
             // Único e insensible a mayúsculas: el nombre viaja al sistema de tickets, y
             // permitir "cpereyra" y "CPereyra" como cuentas distintas rompería el vínculo.
             e.HasIndex(x => x.Usuario).IsUnique().HasDatabaseName("UX_T_USUARIO_USUARIO");
-            e.HasIndex(x => x.Email).IsUnique().HasDatabaseName("UX_T_USUARIO_EMAIL");
         });
     }
 
@@ -121,38 +118,49 @@ public sealed class AsistenteDbContext : DbContext
         });
     }
 
-    private static void ConfigurarToken(ModelBuilder b)
+    private static void ConfigurarPermisos(ModelBuilder b)
     {
-        b.Entity<TokenUsuario>(e =>
+        b.Entity<Permiso>(e =>
         {
-            e.ToTable("T_TOKEN_USUARIO");
+            e.ToTable("T_PERMISO");
             e.HasKey(x => x.Id);
 
             e.Property(x => x.Id).HasColumnName("ID").ValueGeneratedOnAdd();
+            e.Property(x => x.Codigo).HasColumnName("CODIGO").HasMaxLength(60).IsRequired();
+            e.Property(x => x.Descripcion).HasColumnName("DESCRIPCION").HasMaxLength(200).IsRequired();
+
+            // El código es lo que mira la aplicación, así que tiene que ser único: dos
+            // filas con el mismo código harían que otorgar el permiso dependiera de cuál
+            // de las dos se eligió.
+            e.HasIndex(x => x.Codigo).IsUnique().HasDatabaseName("UX_T_PERMISO_CODIGO");
+        });
+
+        b.Entity<UsuarioPermiso>(e =>
+        {
+            e.ToTable("T_USUARIO_PERMISO");
+
+            // Clave compuesta en lugar de un id propio: el par ya identifica la fila, y
+            // como clave primaria impide por construcción otorgar dos veces lo mismo.
+            e.HasKey(x => new { x.UserId, x.PermisoId });
+
             e.Property(x => x.UserId).HasColumnName("USUARIO_ID").IsRequired();
-            e.Property(x => x.Tipo).HasColumnName("TIPO").HasConversion<int>().IsRequired();
-
-            // Longitud fija: es un SHA-256 en hexadecimal.
-            e.Property(x => x.TokenHash).HasColumnName("TOKEN_HASH").HasMaxLength(64).IsRequired();
-
-            e.Property(x => x.CreadoEnUtc).HasColumnName("CREADO_EN_UTC").IsRequired();
-            e.Property(x => x.ExpiraEnUtc).HasColumnName("EXPIRA_EN_UTC").IsRequired();
-            e.Property(x => x.UsadoEnUtc).HasColumnName("USADO_EN_UTC");
-            e.Property(x => x.AnuladoEnUtc).HasColumnName("ANULADO_EN_UTC");
+            e.Property(x => x.PermisoId).HasColumnName("PERMISO_ID").IsRequired();
+            e.Property(x => x.OtorgadoEnUtc).HasColumnName("OTORGADO_EN_UTC").IsRequired();
 
             e.HasOne<AppUser>()
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // La búsqueda siempre es por hash y tipo: sin este índice cada validación de
-            // enlace recorrería la tabla entera.
-            e.HasIndex(x => new { x.TokenHash, x.Tipo })
-                .IsUnique()
-                .HasDatabaseName("UX_T_TOKEN_USUARIO_HASH_TIPO");
+            // Restrict y no Cascade: borrar un permiso del catálogo mientras alguien lo
+            // tiene otorgado es casi siempre un error, y conviene que la base lo frene en
+            // lugar de retirar atribuciones en silencio.
+            e.HasOne<Permiso>()
+                .WithMany()
+                .HasForeignKey(x => x.PermisoId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            e.HasIndex(x => new { x.UserId, x.Tipo })
-                .HasDatabaseName("IX_T_TOKEN_USUARIO_USUARIO_TIPO");
+            e.HasIndex(x => x.PermisoId).HasDatabaseName("IX_T_USUARIO_PERMISO_PERMISO");
         });
     }
 

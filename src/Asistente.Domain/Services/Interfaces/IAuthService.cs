@@ -16,36 +16,25 @@ public interface IHasherClave
     bool Verificar(string hashGuardado, string clave, out bool requiereRehash);
 }
 
-/// <summary>Envío de correo. Se abstrae para poder no mandar nada en desarrollo.</summary>
-public interface IServicioCorreo
-{
-    Task EnviarAsync(string destinatario, string asunto, string cuerpoHtml, CancellationToken ct);
-}
-
-/// <summary>Genera y verifica los tokens de un solo uso que viajan por correo.</summary>
-public interface IGeneradorTokens
-{
-    /// <summary>Devuelve el token en claro —que solo viaja en el correo— y su hash.</summary>
-    (string Token, string Hash) Generar();
-
-    string Hashear(string token);
-}
-
 public interface IAuthService
 {
-    Task<Resultado<RegistroResultado>> RegistrarAsync(RegistroRequest request, CancellationToken ct);
-
     Task<Resultado<UsuarioActual>> IniciarSesionAsync(LoginRequest request, CancellationToken ct);
 
-    Task<Resultado> VerificarEmailAsync(string token, CancellationToken ct);
-
-    /// <summary>
-    /// Siempre informa éxito, exista o no la cuenta: una respuesta distinta permitiría
-    /// averiguar qué correos están registrados.
-    /// </summary>
-    Task<Resultado> SolicitarRestablecerAsync(OlvidoClaveRequest request, CancellationToken ct);
-
-    Task<Resultado> RestablecerClaveAsync(RestablecerClaveRequest request, CancellationToken ct);
+    Task<Resultado> CambiarClavePropiaAsync(long userId, CambioClaveRequest request, CancellationToken ct);
 
     Task<UsuarioActual?> ObtenerPorIdAsync(long userId, CancellationToken ct);
+}
+
+/// <summary>
+/// Operaciones reservadas sobre cuentas ajenas. Cada una exige un permiso distinto: quien
+/// puede levantar un bloqueo no necesariamente debe poder cambiar contraseñas.
+/// </summary>
+public interface IMantenimientoUsuariosService
+{
+    Task<IReadOnlyList<UsuarioMantenimientoDto>> ListarAsync(CancellationToken ct);
+
+    /// <summary>Asigna una contraseña nueva. No existe forma de leer la anterior: es un hash.</summary>
+    Task<Resultado> ResetClaveAsync(long ejecutorId, long userId, ResetClaveRequest request, CancellationToken ct);
+
+    Task<Resultado> DesbloquearAsync(long ejecutorId, long userId, CancellationToken ct);
 }

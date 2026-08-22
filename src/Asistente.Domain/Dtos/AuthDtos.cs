@@ -1,31 +1,39 @@
 namespace Asistente.Domain.Dtos;
 
-/// <param name="Usuario">Nombre elegido de la lista habilitada.</param>
-/// <param name="EmailLocal">Parte del correo anterior al dominio; el dominio lo fija el servidor.</param>
-public sealed record RegistroRequest(
-    string Usuario,
-    string EmailLocal,
-    string Clave,
-    string ClaveConfirmacion);
-
-/// <param name="RequiereVerificacion">Siempre true: la cuenta nace sin verificar.</param>
-/// <param name="EnlaceVerificacion">
-/// Solo se completa en desarrollo, cuando no hay servidor de correo. En cualquier otro
-/// entorno es null: devolverlo permitiría activar cuentas ajenas sin acceso al buzón.
-/// </param>
-public sealed record RegistroResultado(
-    string Email,
-    bool RequiereVerificacion,
-    string? EnlaceVerificacion);
-
 public sealed record LoginRequest(string Usuario, string Clave);
 
-public sealed record OlvidoClaveRequest(string EmailLocal);
+/// <summary>
+/// Cambio de la propia contraseña. Pide la actual aunque haya sesión abierta: es lo que
+/// impide que una sesión olvidada abierta se convierta en una cuenta perdida.
+/// </summary>
+public sealed record CambioClaveRequest(string ClaveActual, string ClaveNueva, string ClaveConfirmacion);
 
-public sealed record RestablecerClaveRequest(string Token, string Clave, string ClaveConfirmacion);
+/// <summary>
+/// Datos de la sesión que el frontend necesita mostrar.
+///
+/// Incluye los permisos porque la interfaz decide con ellos qué ofrecer —el acceso a
+/// Mantenimiento de Usuarios, sin ir más lejos—. Es una comodidad de presentación, no
+/// una medida de seguridad: el servidor vuelve a verificar cada permiso en cada
+/// operación, porque ocultar un botón no impide llamar al endpoint.
+/// </summary>
+public sealed record SesionUsuarioDto(
+    long Id,
+    string Usuario,
+    string NombreCompleto,
+    IReadOnlyList<string> Permisos);
 
-/// <summary>Datos de la sesión de usuario que el frontend necesita mostrar.</summary>
-public sealed record SesionUsuarioDto(long Id, string Usuario, string NombreCompleto, string Email);
+/// <summary>Fila del listado de Mantenimiento de Usuarios.</summary>
+public sealed record UsuarioMantenimientoDto(
+    long Id,
+    string Usuario,
+    string NombreCompleto,
+    bool Activo,
+    bool Bloqueado,
+    DateTime? BloqueadoHastaUtc,
+    int IntentosFallidos,
+    DateTime? UltimoIngresoUtc,
+    DateTime? UltimoCambioClaveUtc,
+    IReadOnlyList<string> Permisos);
 
-/// <summary>Opción de la lista precargada que se ofrece en el registro.</summary>
-public sealed record UsuarioHabilitadoDto(string Usuario, string NombreCompleto);
+/// <summary>Contraseña que un administrador le asigna a otro usuario.</summary>
+public sealed record ResetClaveRequest(string ClaveNueva, string ClaveConfirmacion);

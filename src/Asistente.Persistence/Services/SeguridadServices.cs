@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Asistente.Domain.Entities;
 using Asistente.Domain.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -21,7 +20,7 @@ public sealed class HasherClave : IHasherClave
 
     // El hasher del framework necesita una instancia de usuario, pero no la usa para
     // derivar: la sal es aleatoria por hash. Se pasa una fija para no construir objetos.
-    private static readonly AppUser Ficticio = new("x", "x@x", "x", "x", DateTime.UnixEpoch);
+    private static readonly AppUser Ficticio = new("x", "x", "x", DateTime.UnixEpoch);
 
     public string Hashear(string clave) => _interno.HashPassword(Ficticio, clave);
 
@@ -34,32 +33,3 @@ public sealed class HasherClave : IHasherClave
     }
 }
 
-/// <summary>
-/// Genera los tokens que viajan por correo.
-///
-/// Son 256 bits del generador criptográfico del sistema, codificados en Base64 apto para
-/// URL. Con esa entropía, adivinar uno es inviable, así que para guardarlos alcanza
-/// SHA-256: el costo alto de PBKDF2 protege secretos que una persona podría elegir mal,
-/// no cadenas aleatorias.
-///
-/// La comparación posterior se hace buscando por hash en la base, no comparando en
-/// memoria, así que no hay superficie para un ataque de tiempo.
-/// </summary>
-public sealed class GeneradorTokens : IGeneradorTokens
-{
-    private const int BytesToken = 32;
-
-    public (string Token, string Hash) Generar()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(BytesToken);
-        var token = Base64UrlEncode(bytes);
-        return (token, Hashear(token));
-    }
-
-    public string Hashear(string token) =>
-        Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
-
-    /// <summary>Base64 sin caracteres que haya que escapar en una URL.</summary>
-    private static string Base64UrlEncode(byte[] bytes) =>
-        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-}

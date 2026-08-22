@@ -32,17 +32,15 @@ public static class DependencyInjection
         RegistrarBaseAsistente(services);
         RegistrarFuenteTickets(services, ajustes.Tickets);
 
-        services.Configure<CorreoSettings>(configuration.GetSection(CorreoSettings.SectionName));
 
         var auth = configuration.GetSection(AuthSettings.SectionName).Get<AuthSettings>() ?? new AuthSettings();
         services.AddSingleton(auth);
 
-        RegistrarCorreo(services, configuration);
 
         services.AddSingleton<IHasherClave, HasherClave>();
-        services.AddSingleton<IGeneradorTokens, GeneradorTokens>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IMantenimientoUsuariosService, MantenimientoUsuariosService>();
 
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IRelojCorporativo, RelojCorporativo>();
@@ -115,28 +113,4 @@ public static class DependencyInjection
         }
     }
 
-    /// <summary>
-    /// Proveedor de correo. El de archivo permite probar activación y restablecimiento
-    /// sin servidor SMTP: escribe cada mensaje en disco para abrirlo y hacer clic.
-    /// </summary>
-    private static void RegistrarCorreo(IServiceCollection services, IConfiguration configuration)
-    {
-        var config = configuration.GetSection(CorreoSettings.SectionName).Get<CorreoSettings>()
-                     ?? new CorreoSettings();
-
-        switch (config.Proveedor.ToLowerInvariant())
-        {
-            case "smtp":
-                services.AddScoped<IServicioCorreo, ServicioCorreoSmtp>();
-                break;
-
-            case "archivo":
-                services.AddScoped<IServicioCorreo, ServicioCorreoArchivo>();
-                break;
-
-            default:
-                throw new NotSupportedException(
-                    $"Proveedor de correo no soportado: '{config.Proveedor}'. Valores válidos: Smtp, Archivo.");
-        }
-    }
 }

@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 --  Asistente de Registro de Tareas — Índices que hacen cumplir los invariantes
 --
 --  Ejecutar DESPUÉS de 01-esquema.sql.
@@ -37,16 +37,6 @@ BEGIN
 END
 GO
 
--- Un token de correo vigente por usuario y tipo: al emitir uno nuevo la aplicación anula
--- los anteriores, y este índice impide que queden dos activos si algo fallara.
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_T_TOKEN_USUARIO_VIGENTE')
-BEGIN
-    CREATE UNIQUE INDEX UX_T_TOKEN_USUARIO_VIGENTE
-        ON dbo.T_TOKEN_USUARIO (USUARIO_ID, TIPO)
-        WHERE USADO_EN_UTC IS NULL AND ANULADO_EN_UTC IS NULL;
-END
-GO
-
 -- ---------------------------------------------------------------------------------
 --  Nombre de usuario insensible a mayúsculas
 --
@@ -54,6 +44,9 @@ GO
 --  creó con una intercalación sensible a mayúsculas, "cpereyra" y "CPereyra" serían dos
 --  cuentas distintas y una de ellas no encontraría sus tickets. Se fuerza la columna a
 --  una intercalación insensible para que el índice único ya creado lo impida.
+--
+--  Es además lo que permite escribir el usuario como salga al iniciar sesión: sin esto,
+--  entrar como "CPereyra" sería un usuario inexistente.
 -- ---------------------------------------------------------------------------------
 IF EXISTS (
     SELECT 1
@@ -74,28 +67,8 @@ BEGIN
 END
 GO
 
--- El correo se compara igual: quien escribe "CPereyra@..." debe encontrar su cuenta.
-IF EXISTS (
-    SELECT 1
-      FROM sys.columns c
-      JOIN sys.tables  t ON t.object_id = c.object_id
-     WHERE t.name = 'T_USUARIO'
-       AND c.name = 'EMAIL'
-       AND c.collation_name IS NOT NULL
-       AND c.collation_name NOT LIKE '%[_]CI[_]%'
-)
-BEGIN
-    DROP INDEX UX_T_USUARIO_EMAIL ON dbo.T_USUARIO;
-
-    ALTER TABLE dbo.T_USUARIO
-        ALTER COLUMN EMAIL NVARCHAR(160) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL;
-
-    CREATE UNIQUE INDEX UX_T_USUARIO_EMAIL ON dbo.T_USUARIO (EMAIL);
-END
-GO
-
 -- ---------------------------------------------------------------------------------
---  Verificación: las cuatro consultas deben devolver cero filas.
+--  Verificación: las tres consultas deben devolver cero filas.
 -- ---------------------------------------------------------------------------------
 --
 --   SELECT USUARIO_ID, COUNT(*) FROM dbo.T_JORNADA
@@ -103,10 +76,6 @@ GO
 --
 --   SELECT JORNADA_ID, COUNT(*) FROM dbo.T_SESION
 --    WHERE FIN_UTC IS NULL GROUP BY JORNADA_ID HAVING COUNT(*) > 1;
---
---   SELECT USUARIO_ID, TIPO, COUNT(*) FROM dbo.T_TOKEN_USUARIO
---    WHERE USADO_EN_UTC IS NULL AND ANULADO_EN_UTC IS NULL
---    GROUP BY USUARIO_ID, TIPO HAVING COUNT(*) > 1;
 --
 --   SELECT USUARIO, COUNT(*) FROM dbo.T_USUARIO
 --    GROUP BY USUARIO HAVING COUNT(*) > 1;

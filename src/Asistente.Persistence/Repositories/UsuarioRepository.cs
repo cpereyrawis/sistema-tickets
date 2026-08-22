@@ -19,35 +19,27 @@ public sealed class UsuarioRepository : IUsuarioRepository
     public Task<AppUser?> BuscarPorUsuarioAsync(string usuario, CancellationToken ct) =>
         _db.Usuarios.FirstOrDefaultAsync(u => u.Usuario == usuario, ct);
 
-    public Task<AppUser?> BuscarPorEmailAsync(string email, CancellationToken ct) =>
-        _db.Usuarios.FirstOrDefaultAsync(u => u.Email == email, ct);
+    public async Task<IReadOnlyList<AppUser>> ListarTodosAsync(CancellationToken ct) =>
+        await _db.Usuarios.OrderBy(u => u.Usuario).ToListAsync(ct);
 
-    public Task<bool> ExisteUsuarioAsync(string usuario, CancellationToken ct) =>
-        _db.Usuarios.AnyAsync(u => u.Usuario == usuario, ct);
-
-    public async Task AgregarAsync(AppUser usuario, CancellationToken ct) =>
-        await _db.Usuarios.AddAsync(usuario, ct);
-
-    public async Task AgregarTokenAsync(TokenUsuario token, CancellationToken ct) =>
-        await _db.Tokens.AddAsync(token, ct);
-
-    public Task<TokenUsuario?> BuscarTokenAsync(string tokenHash, TipoToken tipo, CancellationToken ct) =>
-        _db.Tokens.FirstOrDefaultAsync(t => t.TokenHash == tokenHash && t.Tipo == tipo, ct);
-
-    public async Task AnularTokensPendientesAsync(
-        long userId, TipoToken tipo, DateTime ahoraUtc, CancellationToken ct)
-    {
-        var pendientes = await _db.Tokens
-            .Where(t => t.UserId == userId
-                        && t.Tipo == tipo
-                        && t.UsadoEnUtc == null
-                        && t.AnuladoEnUtc == null)
+    public async Task<IReadOnlyList<string>> ListarPermisosAsync(long userId, CancellationToken ct) =>
+        await _db.UsuarioPermisos
+            .Where(up => up.UserId == userId)
+            .Join(_db.Permisos, up => up.PermisoId, p => p.Id, (_, p) => p.Codigo)
             .ToListAsync(ct);
 
-        foreach (var token in pendientes)
-        {
-            token.Anular(ahoraUtc);
-        }
+    public async Task<IReadOnlyDictionary<long, IReadOnlyList<string>>> ListarPermisosDeTodosAsync(
+        CancellationToken ct)
+    {
+        var filas = await _db.UsuarioPermisos
+            .Join(_db.Permisos, up => up.PermisoId, p => p.Id, (up, p) => new { up.UserId, p.Codigo })
+            .ToListAsync(ct);
+
+        return filas
+            .GroupBy(f => f.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<string>)g.Select(f => f.Codigo).ToList());
     }
 
     public Task GuardarAsync(CancellationToken ct) => _db.SaveChangesAsync(ct);

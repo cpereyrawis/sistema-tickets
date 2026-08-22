@@ -4,18 +4,18 @@ import { authApi, ErrorApi, type SesionApi } from '../services/api';
 
 interface Props {
   onEntrar: (sesion: SesionApi) => void;
-  onIrARegistro: () => void;
-  onIrAOlvido: () => void;
 }
 
 /**
- * Inicio de sesión.
+ * Inicio de sesión. Es la única puerta de entrada: no hay registro ni recuperación por
+ * correo. Las cuentas vienen precargadas, y quien pierde su contraseña se la pide a
+ * alguien con permiso de mantenimiento.
  *
  * Las credenciales viajan al backend, que valida y emite una cookie cifrada. La contraseña
  * no se guarda en ningún estado persistente del cliente ni vuelve en la respuesta
  * (FR-003, AC-16).
  */
-export function PantallaLogin({ onEntrar, onIrARegistro, onIrAOlvido }: Props) {
+export function PantallaLogin({ onEntrar }: Props) {
   const [usuario, setUsuario] = useState('');
   const [clave, setClave] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -85,19 +85,9 @@ export function PantallaLogin({ onEntrar, onIrARegistro, onIrAOlvido }: Props) {
             {enviando ? 'Ingresando…' : 'Iniciar sesión'}
           </button>
 
-          <div className="login__demo">
-            <span>
-              <button type="button" className="enlace" onClick={onIrAOlvido}>
-                Olvidé mi contraseña
-              </button>
-            </span>
-            <span>
-              ¿No tenés cuenta?{' '}
-              <button type="button" className="enlace" onClick={onIrARegistro}>
-                Registrate
-              </button>
-            </span>
-          </div>
+          <p className="login__ayuda">
+            ¿Olvidaste tu contraseña? Pedile a un administrador que te asigne una nueva.
+          </p>
         </form>
       </div>
     </div>

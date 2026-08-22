@@ -340,13 +340,32 @@ code {
   background: var(--marca-banda);
   border-radius: 0 0 var(--r-xl) var(--r-xl);
   box-shadow: var(--sombra-1);
-  overflow: hidden;
   color: #fff;
 }
 
+/*
+  Capa que recorta la decoración.
+
+  El recorte vive acá y NO en .barra a propósito. Con overflow:hidden en la barra, los
+  círculos quedaban prolijos pero el menú desplegable —que cuelga por debajo— quedaba
+  atrapado en la misma franja: en lugar de caer bajo la barra se dibujaba dentro, y al
+  entrar el foco el navegador scrolleaba la propia barra para alcanzarlo, empujando el
+  nombre y el avatar fuera de la vista sin forma de volver.
+
+  Separando ambas cosas, la decoración sigue recortada y la barra deja de ser un
+  contenedor con scroll.
+*/
+.barra__fondo {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /* Formas orgánicas tenues, como las del encabezado de referencia. */
-.barra::before,
-.barra::after {
+.barra__fondo::before,
+.barra__fondo::after {
   content: '';
   position: absolute;
   border-radius: 50%;
@@ -354,14 +373,14 @@ code {
   pointer-events: none;
 }
 
-.barra::before {
+.barra__fondo::before {
   width: 210px;
   height: 210px;
   top: -130px;
   left: 12%;
 }
 
-.barra::after {
+.barra__fondo::after {
   width: 150px;
   height: 150px;
   bottom: -105px;
@@ -1362,4 +1381,199 @@ code {
 
 .enlace:hover {
   filter: brightness(1.15);
+}
+
+.login__ayuda {
+  margin: 0;
+  padding-top: var(--e-3);
+  border-top: 1px solid var(--borde);
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+
+/* ---------- Tabla compacta ---------- */
+
+/*
+  Variante para listados largos y de lectura rápida, como la nómina de usuarios, donde
+  importa cuántas filas entran de un vistazo más que la holgura de cada una.
+*/
+.tabla--compacta th {
+  padding: 0.4rem 0.7rem;
+}
+
+.tabla--compacta td {
+  padding: 0.3rem 0.7rem;
+}
+
+/*
+  Estado de la fila. Lo normal se atenúa y solo lo excepcional levanta la voz: en una
+  nómina donde casi todos están activos, marcar cada "Activo" en negrita gasta la
+  atención justo en lo que no hay que mirar.
+*/
+.tabla__estado {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+
+.tabla__estado--alerta {
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+/* ---------- Menú de opciones de la barra ---------- */
+
+.menu {
+  position: relative;
+}
+
+.barra__usuario--boton {
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: var(--r-md);
+  padding: 0.3rem 0.6rem 0.3rem 0.35rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.barra__usuario--boton:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.barra__usuario--boton:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+/*
+ * Capa transparente a pantalla completa por debajo del panel. Es lo que hace que un clic
+ * en cualquier otro lado cierre el menú, sin tener que escuchar eventos en el documento
+ * y acordarse de quitarlos.
+ */
+.menu__velo {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.menu__panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 41;
+  min-width: 15rem;
+  display: flex;
+  flex-direction: column;
+  padding: var(--e-1);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--r-md);
+  box-shadow: var(--sombra-2);
+}
+
+.menu__item {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--texto);
+  cursor: pointer;
+}
+
+.menu__item:hover {
+  background: var(--superficie-3);
+}
+
+.menu__item:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: -2px;
+}
+
+.menu__item--sep {
+  margin-top: var(--e-1);
+  border-top: 1px solid var(--borde);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  padding-top: 0.6rem;
+}
+
+/* ---------- Barra de acciones sobre la grilla ---------- */
+
+/*
+  Las acciones de la nómina viven acá y no como última columna de la tabla.
+
+  Como columna quedaban del otro lado del scroll horizontal: en un teléfono había que
+  arrastrar la grilla hacia la derecha para poder pulsarlas, y hasta entonces ni se
+  sabía que existían. Fuera de la grilla no se mueven nunca, y de paso la tabla pierde
+  la columna más ancha.
+*/
+.barra-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  margin-bottom: var(--e-3);
+  padding: var(--e-3);
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+  border-radius: var(--r-lg);
+}
+
+.barra-acciones__objetivo {
+  font-size: var(--t-sm);
+  color: var(--texto-2);
+  min-width: 0;
+}
+
+/* En pantalla angosta el nombre completo es lo primero que sobra: el usuario alcanza
+   para saber sobre quién se está por operar. */
+@media (max-width: 520px) {
+  .barra-acciones__nombre {
+    display: none;
+  }
+}
+
+.barra-acciones__botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+.barra-acciones__botones .btn {
+  font-size: var(--t-sm);
+  padding: 0.45rem 0.8rem;
+}
+
+/* La fila entera es un blanco de selección, así que tiene que anunciarse como tal. */
+.tabla tbody tr {
+  cursor: pointer;
+}
+
+/*
+  La fila elegida se marca con fondo Y con una barra al costado, no solo con color: quien
+  no distingue bien los tonos igual necesita ver cuál está seleccionada.
+*/
+.tabla__fila--elegida td {
+  background: var(--acento-fondo);
+}
+
+.tabla__fila--elegida td:first-child {
+  box-shadow: inset 3px 0 0 var(--acento);
+}
+
+/* Texto solo para lectores de pantalla: encabezado de la columna de selección, que
+   visualmente no necesita rótulo pero sin él quedaría una celda muda. */
+.oculto-visual {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
